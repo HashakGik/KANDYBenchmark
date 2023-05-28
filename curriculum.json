@@ -1,0 +1,824 @@
+[
+  {
+    "task_name": "triangoli",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "triangle",
+        "color": "any",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "not_triangle",
+        "color": "any",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "quadrati",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "square",
+        "color": "any",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "not_square",
+        "color": "any",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "cerchi",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "circle",
+        "color": "any",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "not_circle",
+        "color": "any",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "rossi",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "red",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "not_red",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "verdi",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "green",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "not_green",
+        "size": "any"
+      }
+    ]
+  },{
+    "task_name": "blu",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+  "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "blue",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "not_blue",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "gialli",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "yellow",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "not_yellow",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "magenta",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "magenta",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "not_magenta",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "ciano",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "cyan",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "not_cyan",
+        "size": "any"
+      }
+    ]
+  },{
+    "task_name": "primari_vs_secondari",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+  "noisy_color": false,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "red|green|blue",
+        "size": "any"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "yellow|cyan|magenta",
+        "size": "any"
+      }
+    ]
+  },
+  {
+    "task_name": "grandi",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "any",
+        "size": "large"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "any",
+        "size": "small"
+      }
+    ]
+  },
+  {
+    "task_name": "piccoli",
+    "samples": 25,
+    "alpha": 0.0,
+    "beta": 0.5,
+    "gamma": 0.7,
+    "noisy_color": true,
+    "noisy_size": true,
+    "positive_samples": [
+      {
+        "shape": "any",
+        "color": "any",
+        "size": "small"
+      }
+    ],
+    "negative_samples": [
+      {
+        "shape": "any",
+        "color": "any",
+        "size": "large"
+      }
+    ]
+  },
+  {
+    "task_name": "stack",
+    "samples": 25,
+    "alpha": 0.3,
+    "beta": 0.1,
+    "gamma": 0.5,
+    "noisy_color": true,
+    "noisy_size": false,
+    "positive_samples": [
+      {
+        "shuffled": true,
+        "stack": [
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          }
+        ]
+      }
+    ],
+    "negative_samples": [
+        {
+        "shuffled": true,
+        "side_by_side": [
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "task_name": "diag1",
+    "samples": 25,
+    "alpha": 0.3,
+    "beta": 0.1,
+    "gamma": 0.5,
+    "noisy_color": true,
+    "noisy_size": false,
+    "positive_samples": [
+      {
+        "shuffled": true,
+        "diagonal_ul_lr": [
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          }
+        ]
+      }
+    ],
+    "negative_samples": [
+      {
+        "shuffled": true,
+        "diagonal_ll_ur": [
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          },
+          {
+            "shape": "any",
+        "color": "any",
+        "size": "any"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "task_name": "uguali_vs_diversi_rossi",
+    "samples": 25,
+    "alpha": 0.1,
+    "beta": 0.1,
+    "gamma": 0.5,
+    "noisy_color": true,
+    "noisy_size": false,
+    "positive_samples": [
+      {
+        "grid": [
+          {
+            "shape": "triangle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "grid": [
+          {
+            "shape": "square",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "grid": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      }
+    ],
+    "negative_samples": [
+      {
+        "grid": [
+          {
+            "shape": "not_triangle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "not_square",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "not_circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "not_square",
+            "color": "red",
+            "size": "any"
+          }
+          ]
+      }
+    ]
+  },
+  {
+    "task_name": "palindromi",
+    "samples": 100,
+    "alpha": 0.05,
+    "beta": 0.4,
+    "gamma": 0.9,
+    "noisy_color": true,
+    "noisy_size": false,
+    "positive_samples": [
+      {
+        "shuffled": false,
+        "stack": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "shuffled": false,
+        "side_by_side": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "shuffled": false,
+        "diagonal_ul_lr": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "shuffled": false,
+        "diagonal_ll_ur": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      }
+    ],
+    "negative_samples": [
+      {
+        "shuffled": true,
+        "stack": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "shuffled": true,
+        "side_by_side": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "shuffled": true,
+        "diagonal_ul_lr": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      },
+      {
+        "shuffled": true,
+        "diagonal_ll_ur": [
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "blue",
+            "size": "any"
+          },
+          {
+            "shape": "square",
+            "color": "green",
+            "size": "any"
+          },
+          {
+            "shape": "triangle",
+            "color": "yellow",
+            "size": "any"
+          },
+          {
+            "shape": "circle",
+            "color": "red",
+            "size": "any"
+          }
+        ]
+      }
+    ]
+  }
+]
