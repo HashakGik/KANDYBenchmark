@@ -1,10 +1,12 @@
 [
   {
-    "task_name": "triangoli",
+    "task_name": "triangles",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -23,11 +25,13 @@
     ]
   },
   {
-    "task_name": "quadrati",
+    "task_name": "squares",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -46,11 +50,13 @@
     ]
   },
   {
-    "task_name": "cerchi",
+    "task_name": "circles",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -69,11 +75,13 @@
     ]
   },
   {
-    "task_name": "rossi",
+    "task_name": "red",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -92,11 +100,13 @@
     ]
   },
   {
-    "task_name": "verdi",
+    "task_name": "green",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -114,11 +124,13 @@
       }
     ]
   },{
-    "task_name": "blu",
+    "task_name": "blue",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
   "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -137,11 +149,13 @@
     ]
   },
   {
-    "task_name": "gialli",
+    "task_name": "yellow",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -165,6 +179,8 @@
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -183,11 +199,13 @@
     ]
   },
   {
-    "task_name": "ciano",
+    "task_name": "cyan",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -205,11 +223,13 @@
       }
     ]
   },{
-    "task_name": "primari_vs_secondari",
+    "task_name": "primary_vs_secondary_colors",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
   "noisy_color": false,
     "noisy_size": true,
     "positive_samples": [
@@ -228,11 +248,13 @@
     ]
   },
   {
-    "task_name": "grandi",
+    "task_name": "large",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -251,11 +273,13 @@
     ]
   },
   {
-    "task_name": "piccoli",
+    "task_name": "small",
     "samples": 25,
     "alpha": 0.0,
     "beta": 0.5,
     "gamma": 0.7,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": true,
     "positive_samples": [
@@ -274,11 +298,13 @@
     ]
   },
   {
-    "task_name": "stack",
+    "task_name": "stack_vs_sbs",
     "samples": 25,
     "alpha": 0.3,
     "beta": 0.1,
     "gamma": 0.5,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": false,
     "positive_samples": [
@@ -327,11 +353,13 @@
     ]
   },
   {
-    "task_name": "diag1",
+    "task_name": "diag1_vs_diag2",
     "samples": 25,
     "alpha": 0.3,
     "beta": 0.1,
     "gamma": 0.5,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": false,
     "positive_samples": [
@@ -380,11 +408,13 @@
     ]
   },
   {
-    "task_name": "uguali_vs_diversi_rossi",
+    "task_name": "same_vs_different_checkerboard",
     "samples": 25,
     "alpha": 0.1,
     "beta": 0.1,
     "gamma": 0.5,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": false,
     "positive_samples": [
@@ -489,11 +519,13 @@
     ]
   },
   {
-    "task_name": "palindromi",
+    "task_name": "palindromes",
     "samples": 100,
     "alpha": 0.05,
     "beta": 0.4,
     "gamma": 0.9,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "noisy_color": true,
     "noisy_size": false,
     "positive_samples": [

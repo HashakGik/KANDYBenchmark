@@ -32,10 +32,22 @@ Spatial compositions can be arbitrarily complex, however, as the available space
 
 Top level concepts are implicitly disjunctive, allowing for complex tasks such as discriminating between "three red circles arranged diagonally, or three blue squares arranged vertically" (positive set) versus "three blue squares arranged diagonally, or three red circles arranged vertically" (negative set).
 
+To maximize experimental robustness, two mechanisms are enforced:
+- A random seed can be specified in the configuration file.
+- If a task has enough samples, all possible combinations are expanded into disjoint train, validation and test sets.
+
+(This latter mechanism may require huge amounts of memory, so it can be disabled by setting `"try_disjoint_splits": false` in the configuration file.)
+
 **All the tasks are assumed to be Bongard-like, ie. a binary decision determining whether an image belongs to a positive or negative set.**
 
 ## Examples
-...
+
+| Task description                 | Positive example                       | Negative example                           |
+|----------------------------------|----------------------------------------|--------------------------------------------|
+| The image contains a triangle    | ![Triangle](./imgs/triangle_p.png)     | ![Not triangle](./imgs/triangle_n.png)     |
+| Objects are arranged vertically  | ![Vertical](./imgs/vertical_p.png)     | ![Not vertical](./imgs/vertical_n.png)     |
+| Shapes are all the same          | ![Same](./imgs/same_p.png)             | ![Not same](./imgs/same_n.png)             |
+| Shapes form a palindrome         | ![Palindrome](./imgs/palindrome_p.png) | ![Not palindrome](./imgs/palindrome_n.png) |
 
 ## Requirements
 ```
@@ -47,27 +59,32 @@ pillow
 
 ## Usage
 
-1. Generate a JSON curriculum (see `commented_curriculum.js` for the grammar).
-2. Create a teacher:
+1. Generate a JSON configuration (see `commented_config.js` for the grammar).
+2. Generate a JSON curriculum (see `commented_curriculum.js` for the grammar).
+3. Create a teacher:
     ```python
-    with open("curriculum.json", "r") as file:
+   with open("config.json", "r") as file:
         config = file.read()
+   
+    with open("curriculum.json", "r") as file:
+        curriculum = file.read()
 
-    cg = CurriculumGenerator(config, (128, 128), 10, logger)
+    cg = CurriculumGenerator(config, curriculum, logger)
    # Logger is an optional instance of logging for debug purposes.
    ```
-3. Use the teacher:
+4. Use the teacher:
    - As i.i.d. supervised dataset:
      ```python
      for i in range(len(cg.tasks)):
         for j in range(num_batches):
-            batch = cg.get_test_set(i, batch_size)
+            batch = cg.get_batch(i, batch_size, split)
             # batch is a list of tuples ((anchor_image, anchor_symbol), (positive_image, positive_symbol), (negative_image, negative_symbol))
+            # split is None/"train"/"val"/"test". If config["try_disjoint_splits"] is false or the set cardinality is too small, this does not matter.
             use(batch)
      ```
    - As tutor generator:
     ```python
-    for (anchor, positive, negative) in cg.generate_curriculum():
+    for (anchor, positive, negative) in cg.generate_curriculum(split):
         # anchor is (anchor_image, anchor_symbol)
         # positive and negative are None if the sample is unsupervised, otherwise they are the same as anchor.
         use(anchor, positive, negative)

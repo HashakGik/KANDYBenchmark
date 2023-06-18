@@ -6,6 +6,8 @@
     "alpha": 0.0, // Probability of sampling from past tasks (geometric distribution)
     "beta": 0.1, // Minimum probability of supervision.
     "gamma": 0.5, // Initial probability of supervision. This value will be exponentially decayed up to beta.
+    "train_split": 0.8, // Training set split (0.0-1.0).
+    "val_split": 0.1, // Validation set split (0.0-1.0). Test set split is 1.0 - train - val
     "positive_samples": [ // List of positive samples. Since this list is randomly sampled, these implicitly define a disjunction
                           // (ie. the list ["triangle", "square"] will produce either a triangle or a square, never both in the same image.
       {
@@ -68,6 +70,8 @@
     "alpha": 0.5,
     "beta": 0.1,
     "gamma": 0.2,
+    "train_split": 0.8,
+    "val_split": 0.1,
     "positive_samples": [
       {
         "shuffled": true,
