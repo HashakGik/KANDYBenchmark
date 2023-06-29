@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw
 
 # Class encoding a single task. It takes the global configuration, task parameters, a list of past tasks, a seeded random number generator, and optionally a logger to print debug informations.
 class Task:
-    def __init__(self, config, task_specs, past_tasks, rng, logger=None):
+    def __init__(self, config, task_specs, task_id, past_tasks, rng, logger=None):
         self.name = task_specs["task_name"] # Task name.
         self.alpha = task_specs["alpha"] # Sampling probability for previous tasks.
         self.beta = task_specs["beta"] # Minimum supervision probability.
@@ -18,6 +18,7 @@ class Task:
         self.noisy_color = task_specs["noisy_color"] # Should the color be altered with noise?
         self.noisy_size = task_specs["noisy_size"] # Should the size be altered with noise?
         
+        self.task_id = task_id
 
         # Color noise parameters: the RGB color is converted to HSV and then 0-mean gaussian noise is injected into each coordinate. These parameters are the standard deviation of each gaussian.
         # Values should be chosen by trial and error to preserve perceptual semantics for the entire palette of colors (ie. a human can classify a noisy yellow still as "yellow").
@@ -586,7 +587,7 @@ class Task:
                 if self.rng.random() < self.alpha * (1 - self.alpha) ** j:
                     (s_a, logstring_a),(s_p, logstring_p),(s_n, logstring_n) = self.past_tasks[len(self.past_tasks) - j - 1].sample_supervised(split)
                     self.log("SUPERVISED SAMPLE FROM OLD TASK {}: {}".format(self.past_tasks[len(self.past_tasks) - j - 1].name, (logstring_a, logstring_p, logstring_n)))
-                    yield s_a, s_p, s_n
+                    yield self.past_tasks[len(self.past_tasks) - j - 1].task_id, s_a, s_p, s_n
                     break # Stop at the first success.
 
             # 2. Extract from an exponential distribution the decision of providing a supervised or unsupervised sample.
@@ -595,7 +596,7 @@ class Task:
             if self.rng.random() < self.gamma * np.exp(-self.gamma * t):
                 (s_a, logstring_a),(s_p, logstring_p),(s_n, logstring_n) = self.sample_supervised(split)
                 self.log("SUPERVISED SAMPLE: {}".format((logstring_a, logstring_p, logstring_n)))
-                yield s_a, s_p, s_n
+                yield self.task_id, s_a, s_p, s_n
             else:
                 if self.rng.randint(0, 2) == 1:
                     (s_a, logstring_a),_, _ = self.sample_unsupervised(True, split)
@@ -603,7 +604,7 @@ class Task:
                 else:
                     (s_a, logstring_a), _, _ = self.sample_unsupervised(False, split)
                     self.log("UNSUPERVISED SAMPLE (NEGATIVE): {}".format((logstring_a)))
-                yield s_a, None, None
+                yield self.task_id, s_a, None, None
 
             i += 1
 
@@ -642,19 +643,98 @@ class CurriculumGenerator:
     # Parse the curriculum JSON.
     def parse_curriculum(self, curriculum):
         for i, c in enumerate(curriculum):
-            self.tasks.append(Task(self.config, c, self.tasks[0:i], self.rng, self.logger))
+            self.tasks.append(Task(self.config, c, i, self.tasks[0:i], self.rng, self.logger))
 
     # Reset the generator.
     def reset(self):
         self.current_task = 0
 
-    # Generator for the entire curriculum. It visits each task in order.
-    def generate_curriculum(self, split="train"):
+    # Generator for the entire curriculum. It visits each task in order and returns a batch. Optionally corrupts the task id.
+    def generate_curriculum(self, split="train", task_id_noise=0.0, batch_size=1):
         self.reset()
+        i = 0
+        tid_np = np.zeros(batch_size, dtype=np.uint16)
+        a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+
         while self.current_task < len(self.tasks):
             for sample in self.tasks[self.current_task].get_decision(split):
-                yield sample
+
+                tid, a, p, n = sample
+
+                tid_np[i] = tid
+                a_np[i,:,:,:] = a
+                if p is not None and n is not None:
+                    p_np[i,:,:,:] = p
+                    n_np[i,:,:,:] = n
+
+                i += 1
+
+                if i >= batch_size:
+                    tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise, self.rng.randint(len(self.tasks)), tid)
+
+                    yield tid_np, a_np, p_np, n_np
+                    i = 0
+                    tid_np = np.zeros(batch_size, dtype=np.uint16)
+                    a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                    dtype=np.uint8)
+                    p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                    dtype=np.uint8)
+                    n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                    dtype=np.uint8)
+
             self.current_task += 1
+
+            if i > 0:
+                tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise, self.rng.randint(len(self.tasks)), tid)
+                yield tid_np[:i], a_np[:i,:,:,:], p_np[:i,:,:,:], n_np[:i,:,:,:]
+
+    # Generator for the entire curriculum. Works like generate_curriculum, but samples are sampled randomly from every task (which in turn can decide to provide a previous task sample).
+    # Since each task will be exhausted at some point, sampling is not completely i.i.d., with batches later in the curriculum being sampled from fewer and fewer tasks.
+    def generate_shuffled_curriculum(self, split="train", task_id_noise=0.0, batch_size=1):
+        self.reset()
+        i = 0
+        task_iterators = [t.get_decision(split) for t in self.tasks]
+
+        tid_np = np.zeros(batch_size, dtype=np.uint16)
+        a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+
+        while len(task_iterators) > 0:
+            task = self.rng.choice(task_iterators)
+
+
+            try:
+                tid, a, p, n = next(task)
+
+                tid_np[i] = tid
+                a_np[i, :, :, :] = a
+                if p is not None and n is not None:
+                    p_np[i, :, :, :] = p
+                    n_np[i, :, :, :] = n
+
+                i += 1
+
+                if i >= batch_size:
+                    tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise, self.rng.randint(len(self.tasks), size=batch_size), tid_np)
+
+                    yield tid_np, a_np, p_np, n_np
+                    i = 0
+                    tid_np = np.zeros(batch_size, dtype=np.uint16)
+                    a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                    dtype=np.uint8)
+                    p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                    dtype=np.uint8)
+                    n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                    dtype=np.uint8)
+            except StopIteration:
+                task_iterators.remove(task)
+
+        if i > 0:
+            tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise, self.rng.randint(len(self.tasks), size=i), tid_np[:i])
+            yield tid_np[:i], a_np[:i,:,:,:], p_np[:i,:,:,:], n_np[:i,:,:,:]
 
     # Returns a test set for task i, composed of size samples.
     def get_batch(self, i, size, split=None):

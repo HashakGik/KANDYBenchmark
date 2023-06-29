@@ -3,6 +3,9 @@ from curriculum_generator import CurriculumGenerator
 import os
 import shutil
 
+from PIL import Image
+import numpy as np
+
 # Simple demo for the curriculum generator class. It saves samples in two folders:
 # - samples/curriculum: each sample is generated in teacher mode and numerated progressively in the same order the teacher would provide them.
 #       There is no distinction between current and previous tasks, and supervised and unsupervised images are given together (_u = unsupervised, _a/p/n = supervised triplet).
@@ -33,7 +36,6 @@ if __name__ == "__main__":
     os.makedirs("samples/curriculum/val", exist_ok=True)
     os.makedirs("samples/curriculum/test", exist_ok=True)
 
-
     for split in ["train", "val", "test"]:
         for i in range(len(cg.tasks)):
             os.mkdir("samples/sets/{}/{}".format(split, i))
@@ -44,11 +46,11 @@ if __name__ == "__main__":
                 s_n.save("samples/sets/{}/{}/{:04d}_n.png".format(split, i, j), "PNG")
 
     for split in ["train", "val", "test"]:
-        for i, x in enumerate(cg.generate_curriculum(split)): # NOTE: generate_curriculum() acts as a finite stream, but samples are still chosen randomly.
-            a, p, n = x
-            if p is not None and n is not None:
-                a.save("samples/curriculum/{}/{:04d}_a.png".format(split, i), "PNG")
-                p.save("samples/curriculum/{}/{:04d}_p.png".format(split, i), "PNG")
-                n.save("samples/curriculum/{}/{:04d}_n.png".format(split, i), "PNG")
+        for i, x in enumerate(cg.generate_curriculum(split, batch_size=1)): # NOTE: generate_curriculum() acts as a finite stream, but samples are still chosen randomly.
+            tid, a, p, n = x
+            if np.sum(p) > 0 and np.sum(n) > 0:
+                Image.fromarray(a[0]).save("samples/curriculum/{}/{:02d}_{:04d}_a.png".format(split, tid[0], i), "PNG")
+                Image.fromarray(p[0]).save("samples/curriculum/{}/{:02d}_{:04d}_p.png".format(split, tid[0], i), "PNG")
+                Image.fromarray(n[0]).save("samples/curriculum/{}/{:02d}_{:04d}_n.png".format(split, tid[0], i), "PNG")
             else:
-                a.save("samples/curriculum/{}/{:04d}_u.png".format(split, i), "PNG")
+                Image.fromarray(a[0]).save("samples/curriculum/{}/{:02d}_{:04d}_u.png".format(split, tid[0], i), "PNG")

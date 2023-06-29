@@ -84,11 +84,21 @@ pillow
      ```
    - As tutor generator:
     ```python
-    for (anchor, positive, negative) in cg.generate_curriculum(split):
-        # anchor is (anchor_image, anchor_symbol)
-        # positive and negative are None if the sample is unsupervised, otherwise they are the same as anchor.
-        use(anchor, positive, negative)
+    for (task_id, anchor, positive, negative) in cg.generate_curriculum(split, batch_size):
+        # task_id is the id of the task which generated a particular sample. 
+        # anchor is the anchor image, if unsupervised it can either be positive or negative.
+        # positive and negative are None if the sample is unsupervised, otherwise they are the images (and anchor is guaranteed to be positive).
+        use(task_id, anchor, positive, negative)
     ```
+   - As i.i.d. shuffled tutor generator:
+    ```python
+    for (task_id, anchor, positive, negative) in cg.generate_shuffled_curriculum(split, batch_size):
+        # task_id is the id of the task which generated a particular sample. 
+        # anchor is the anchor image, if unsupervised it can either be positive or negative.
+        # positive and negative are None if the sample is unsupervised, otherwise they are the images (and anchor is guaranteed to be positive).
+        use(task_id, anchor, positive, negative)
+    ```
+   Note: Discard `task_id` for continual learning applications where it is unrealistic to know task progression.
 
 ## License
 
