@@ -1,24 +1,20 @@
-import json
+import yaml
 import numpy as np
 import colorsys
 import re
-import math
-import itertools
 
 from PIL import Image, ImageDraw
 
 # Class encoding a single task. It takes the global configuration, task parameters, a list of past tasks, a seeded random number generator, and optionally a logger to print debug informations.
 class Task:
-    def __init__(self, config, task_specs, task_id, past_tasks, rng, logger=None):
-        self.name = task_specs["task_name"] # Task name.
-        self.alpha = task_specs["alpha"] # Sampling probability for previous tasks.
-        self.beta = task_specs["beta"] # Minimum supervision probability.
-        self.gamma = task_specs["gamma"] # Maximum supervision probability.
-        self.total_samples = task_specs["samples"] # Number of samples to generate for this task.
-        self.noisy_color = task_specs["noisy_color"] # Should the color be altered with noise?
-        self.noisy_size = task_specs["noisy_size"] # Should the size be altered with noise?
-        
-        self.task_id = task_id
+    def __init__(self, id, config, task_specs, patience=1000, logger=None):
+        self.task_id = id  # task_specs["id"] # Task id.
+        self.name = task_specs["name"]  # Task name.
+        self.beta = task_specs["beta"]  # Minimum supervision probability.
+        self.gamma = task_specs["gamma"]  # Maximum supervision probability.
+        self.total_samples = task_specs["samples"]  # Number of samples to generate for this task.
+        self.noisy_color = task_specs["noisy_color"]  # Should the color be altered with noise?
+        self.noisy_size = task_specs["noisy_size"]  # Should the size be altered with noise?
 
         # Color noise parameters: the RGB color is converted to HSV and then 0-mean gaussian noise is injected into each coordinate. These parameters are the standard deviation of each gaussian.
         # Values should be chosen by trial and error to preserve perceptual semantics for the entire palette of colors (ie. a human can classify a noisy yellow still as "yellow").
@@ -26,13 +22,13 @@ class Task:
         self.s_sigma = config["s_sigma"]
         self.v_sigma = config["v_sigma"]
 
-        self.bg_color = config["bg_color"] # Background color for every image.
+        self.bg_color = config["bg_color"]  # Background color for every image.
 
         # Size noise parameter. A uniform random value from -noise to +noise is added to size. (eg. a base size of 25 pixels with a noise of 5 can range from 20 to 30 pixels).
         self.size_noise = config["size_noise"]
 
         # Available base shapes. Extending this dictionary requires to rewrite sample_base_object() as well.
-        self.shapes = ["triangle", "square", "circle"]
+        self.shapes = config["shapes"]
 
         # Available colors. This dictionary can be extended arbitrarily, as long as noise is adjusted accordingly.
         self.colors = config["colors"]
@@ -40,173 +36,46 @@ class Task:
         # Available sizes. This dictionary can be extended arbitrarily, as long as noise is adjusted accordingly.
         self.sizes = config["sizes"]
 
-        # Available compositions. Extending this list requires to write new composition methods and to modify sample().
-        self.compositions = ["in", "stack", "side_by_side", "diagonal_ul_lr", "diagonal_ll_ur", "grid", "random"]
+        self.canvas_size = config["canvas_size"] # Canvas size (w, h)
+        self.padding = config["padding"] # Padding from the border of the canvas (pixels)
 
-        self.past_tasks = past_tasks
+        self.compositional_operators = set(config["compositional_operators"])
+        self.list_operators = {k: [k2 for k2 in v.keys()] for k, v in config["list_operators"].items()}
+        self.shapes = config["shapes"]
+        self.sizes = config["sizes"]
+        self.colors = config["colors"]
 
-        self.canvas_size = config["canvas_size"]
-        self.padding = config["padding"]
-        self.minimum_split_samples = config["minimum_split_samples"]
+        self.size_values = [v for x in self.sizes for v in x.values()]
 
-        self.rng = rng
+        self.seed = config["seed"] ^ self.task_id # Random seed for reproducibility.
+        self.rng = np.random.RandomState(self.seed)
         self.logger = logger
-
-        self.positive_samples, self.card_p = self.parse_rules(task_specs["positive_samples"])
-        self.negative_samples, self.card_n = self.parse_rules(task_specs["negative_samples"])
 
         self.train_split = task_specs["train_split"]
         self.val_split = task_specs["val_split"]
 
-        self.random_sampling = not config["try_disjoint_splits"] # Whether it should sample randomly from the entire definition sets.
-        failed_tests = {}
+        self.sample_sets = {
+            "positive": task_specs["positive_set"],
+            "negative": task_specs["negative_set"]
+        }
 
-        if not self.random_sampling:
-            # Expand rule sets into every possible combination (ignoring random shuffles for tractability). For deep compositions (> 2) or large sets it may require a huge amount of memory.
-            self.p_set = self.expand_rules(self.positive_samples)
-            self.n_set = self.expand_rules(self.negative_samples)
+        self.patience = patience # Number of trials for rejection sampling before giving up.
 
-            train_size_p = int(len(self.p_set) * self.train_split)
-            val_size_p = int(len(self.p_set) * self.val_split)
-            test_size_p = len(self.p_set) - train_size_p - val_size_p
-            train_size_n = int(len(self.n_set) * self.train_split)
-            val_size_n = int(len(self.n_set) * self.val_split)
-            test_size_n = len(self.n_set) - train_size_n - val_size_n
-
-            # If any of the positive/negative train/val/test sets has fewer samples than config["minimum_split_samples"], it defaults to random sampling.
-            tests = {"Positive training": train_size_p, "Positive validation": val_size_p, "Positive test": test_size_p, "Negative training": train_size_n, "Negative validation": val_size_n, "Negative test": test_size_n}
-            for k, v in tests.items():
-                if v < self.minimum_split_samples:
-                    failed_tests[k] = v
-                    self.random_sampling = True
-
-        if self.random_sampling:
-            if len(failed_tests) > 0:
-                self.log("Some sets are too small for task {} ({}). Defaulting to random sampling.".format(self.name, ", ".join(["{} = {}".format(k, v) for k, v in failed_tests.items()])), "warning")
-        else:
-            # If every test is successful, create disjoint train/val/test sets.
-            self.rng.shuffle(self.p_set)
-            self.rng.shuffle(self.n_set)
-
-            self.train_p = self.p_set[0:train_size_p]
-            self.val_p = self.p_set[train_size_p:train_size_p + val_size_p]
-            self.test_p = self.p_set[train_size_p + val_size_p:]
-
-            self.train_n = self.n_set[0:train_size_n]
-            self.val_n = self.n_set[train_size_n:train_size_n + val_size_n]
-            self.test_n = self.n_set[train_size_n + val_size_n:]
-
-
-
-    # Expands a tree of compositional rules into a list of objects.
-    def expand_rules(self, rules):
-        full_set = []
-
-        for r in rules:
-            if len(set(r.keys()).intersection(self.compositions)) == 0:
-                # Base case.
-                for sh in r["shape"]:
-                    for c in r["color"]:
-                        for si in r["size"]:
-                            full_set.append({"shape": sh, "color": c, "size": si})
-            else:
-                # Inductive case.
-                for k in r.keys():
-                    if k != "shuffled":
-                        transposed_part_set = [self.expand_rules([sub_rule]) for sub_rule in r[k]]
-                        part_set = list(map(list, itertools.product(*transposed_part_set))) # Deep magic. The result of the recursive call is a list of lists, where the outermost is a sequence of objects and the innermost is a set of options.
-                                                                                            # We however need a list of lists, where the outermost is a set of options and the innermost is a sequence of objects.
-
-                        for p in part_set:
-                            full_set.append({k: p, "shuffled": r["shuffled"]})
-        return full_set
-
+        self.dirty = True # Dirty bit, if False a call to self.reset() does nothing.
+        self.reset()
 
     # Simple logging method.
-    def log(self, message, level="debug"):
+    def _log(self, message, level="debug"):
         if self.logger is not None:
-            if level == "debug":
-                self.logger.debug(message)
+            if level == "error":
+                self.logger.error(message)
             elif level == "warning":
                 self.logger.warning(message)
             else:
-                self.logger.error(message)
-
-    # JSON validation: base rules. It also expands not_ and | operators.
-    def parse_base_rule(self, r):
-
-        tmp = {}
-
-        if r["shape"] == "any":
-            tmp["shape"] = self.shapes
-        elif r["shape"].startswith("not_"):
-            tmp["shape"] = list(set(self.shapes).difference([r["shape"][len("not_"):]]))
-        else:
-            tmp["shape"] = r["shape"].split("|")
-        if r["color"] == "any":
-            tmp["color"] = list(self.colors.keys())
-        elif r["color"].startswith("not_"):
-            tmp["color"] = list(set(self.colors.keys()).difference([r["color"][len("not_"):]]))
-        else:
-            tmp["color"] = r["color"].split("|")
-        if r["size"] == "any":
-            tmp["size"] = list(self.sizes.keys())
-        elif r["size"].startswith("not_"):
-            tmp["size"] = list(set(self.colors.keys()).difference([r["size"][len("not_"):]]))
-        else:
-            tmp["size"] = r["size"].split("|")
-
-        tmp["shape"] = list(set(tmp["shape"]))
-        tmp["color"] = list(set(tmp["color"]))
-        tmp["size"] = list(set(tmp["size"]))
-
-        assert len(set(tmp["shape"]).intersection(self.shapes)) > 0 and len(set(tmp["shape"]).union(self.shapes)) == len(
-            self.shapes), "Shapes should be a subset of {}, received {}".format(self.shapes, tmp["shape"])
-        assert len(set(tmp["color"]).intersection(self.colors.keys())) > 0 and len(set(tmp["color"]).union(self.colors.keys())) == len(
-            self.colors.keys()), "Colors should be a subset of {}, received {}".format(self.colors.keys(), tmp["color"])
-        assert len(set(tmp["size"]).intersection(self.sizes.keys())) > 0 and len(set(tmp["size"]).union(self.sizes.keys())) == len(
-            self.sizes.keys()), "Sizes should be a subset of {}, received {}".format(self.sizes.keys(), tmp["size"])
-
-        cardinality = len(tmp["shape"]) * len(tmp["color"]) * len(tmp["size"])
-
-        return tmp, cardinality
-
-    # JSON validation: recursive rules.
-    def parse_rules(self, rules):
-        out = []
-
-        cardinality = 0
-
-        for r in rules:
-            assert len(set(r.keys()).intersection(self.compositions)) <= 1, "There can be at most one composition operator at this level, found {}".format(set(r.keys()).intersection(self.compositions))
-
-            if len(set(r.keys()).intersection(self.compositions)) == 0:
-                # Base case: the rule under consideration is a base shape.
-                b, sub_cardinality = self.parse_base_rule(r)
-                out.append(b)
-                if cardinality == 0:
-                    cardinality = sub_cardinality
-                else:
-                    cardinality *= sub_cardinality
-            else:
-                # Inductive case: the rule under consideration is a composition.
-                c = list(set(r.keys()).intersection(self.compositions))[0]
-                rules, sub_cardinality = self.parse_rules(r[c])
-                tmp = {c : rules}
-                if "shuffled" in r.keys():
-                    tmp["shuffled"] = r["shuffled"]
-                else:
-                    tmp["shuffled"] = False
-
-                cardinality += sub_cardinality * (1 if not tmp["shuffled"] else len(rules))
-
-
-                out.append(tmp)
-
-        return out, cardinality
+                self.logger.debug(message)
 
     # Compute random (uniform) size noise.
-    def inject_size_noise(self, size):
+    def _inject_size_noise(self, size):
         if self.size_noise > 0:
             rnd = self.rng.uniform(-self.size_noise, self.size_noise)
         else:
@@ -216,7 +85,7 @@ class Task:
     # colorsys requires lists, PIL requires #rrggbb strings. These utilities handle conversions.
 
     def _rgb_to_list(self, string):
-        assert re.match("#[0-9a-f]{6}", string, flags=re.IGNORECASE) is not None
+        assert re.match("^#[0-9a-f]{6}$", string, flags=re.IGNORECASE) is not None
         rgb = re.search("#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})", string, flags=re.IGNORECASE).groups()
         rgb = [int(x, 16) for x in rgb]
         return rgb
@@ -226,7 +95,7 @@ class Task:
         return "#{:02x}{:02x}{:02x}".format(int(rgb[0]), int(rgb[1]), int(rgb[2]))
 
     # Inject gaussian noise into HSV coordinates.
-    def inject_color_noise(self, rgb):
+    def _inject_color_noise(self, rgb):
         hsv = colorsys.rgb_to_hsv(*self._rgb_to_list(rgb))
         h = hsv[0]  # h in [0.0, 1.0]
         s = hsv[1]  # s in [0.0, 1.0]
@@ -243,41 +112,39 @@ class Task:
 
         return self._list_to_rgb(colorsys.hsv_to_rgb(h, s, v))
 
-    # Randomly sample a base object from the sample list and draw it on a canvas_size image.
-    def sample_base_object(self, sample, canvas_size):
-        if isinstance(sample["shape"], list):
-            shape = self.rng.choice(sample["shape"])
-        else:
-            shape = sample["shape"]
-        if isinstance(sample["color"], list):
-            color_name = self.rng.choice(sample["color"])
-        else:
-            color_name = sample["color"]
-        if isinstance(sample["size"], list):
-            size_name = self.rng.choice(sample["size"])
-        else:
-            size_name = sample["size"]
+    # Draw a symbol on a canvas_size image.
+    def _draw_base_object(self, symbol, canvas_size):
+        shape = symbol["shape"]
+        color_name = symbol["color"]
+        size_name = symbol["size"]
+
+        for c in self.colors:
+            if color_name in c.keys():
+                color = c[color_name]
 
         if self.noisy_color:
-            color = self.inject_color_noise(self.colors[color_name])
-        else:
-            color = self.colors[color_name]
+            color = self._inject_color_noise(color)
+
+        for s in self.sizes:
+            if size_name in s.keys():
+                size = s[size_name]
+
         if self.noisy_size:
-            size = self.inject_size_noise(self.sizes[size_name])
-        else:
-            size = self.sizes[size_name]
+            size = self._inject_size_noise(size)
 
-        if canvas_size[0] < max(self.sizes.values()) + self.size_noise or canvas_size[1] < max(self.sizes.values()) + self.size_noise:
-            self.log("Canvas size too small. Defaulting to ({},{})".format(max(self.sizes.values()) + self.size_noise, max(self.sizes.values()) + self.size_noise), "warning")
-            canvas_size = (max(self.sizes.values()) + self.size_noise, max(self.sizes.values()) + self.size_noise)
+        if canvas_size[0] < max(self.size_values) + self.size_noise or canvas_size[1] < max(
+                self.size_values) + self.size_noise:
+            self._log("Canvas size too small. Defaulting to ({},{})".format(max(self.size_values) + self.size_noise,
+                                                                            max(self.size_values) + self.size_noise),
+                     "warning")
+            canvas_size = (max(self.size_values) + self.size_noise, max(self.size_values) + self.size_noise)
 
-        logstring = "({}-{}-{})".format(shape, color_name, size_name)
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
         draw = ImageDraw.Draw(bitmap)
 
         bounding_box = (
-        (canvas_size[0] / 2 - size / 2, canvas_size[1] / 2 - size / 2),
-        (canvas_size[0] / 2 + size / 2, canvas_size[1] / 2 + size / 2))
+            (canvas_size[0] / 2 - size / 2, canvas_size[1] / 2 - size / 2),
+            (canvas_size[0] / 2 + size / 2, canvas_size[1] / 2 + size / 2))
 
         # PIL regular_polygon wants the coordinates of the inscribed circle, making polygons too large for the canvas size. Therefore we manually draw our own.
 
@@ -293,43 +160,34 @@ class Task:
                   )
             draw.polygon(xy, fill=color, outline=None)
         elif shape == "square":
-            xy = ((canvas_size[0] / 2 - size / 2, canvas_size[1] / 2 - size / 2), (canvas_size[0] / 2 - size / 2, canvas_size[1] / 2 + size / 2), (canvas_size[0] / 2 + size / 2, canvas_size[1] / 2 + size / 2), (canvas_size[0] / 2 + size / 2, canvas_size[1] / 2 - size / 2))
+            xy = ((canvas_size[0] / 2 - size / 2, canvas_size[1] / 2 - size / 2),
+                  (canvas_size[0] / 2 - size / 2, canvas_size[1] / 2 + size / 2),
+                  (canvas_size[0] / 2 + size / 2, canvas_size[1] / 2 + size / 2),
+                  (canvas_size[0] / 2 + size / 2, canvas_size[1] / 2 - size / 2))
             draw.polygon(xy, fill=color, outline=None)
 
-        return (bitmap, logstring)
+        return bitmap
 
-    # "in" composition function. Recursively samples each element from the sample list, then draws them in a canvas_size image.
-    def sample_in(self, sample, canvas_size):
+    # "in" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_in(self, symbol, canvas_size):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        logstrings = []
-
-        if sample["shuffled"]:
-            self.rng.shuffle(sample["in"])
-
-        for s in sample["in"]:
-            bmp, ls = self.sample(s, canvas_size)
+        for s in symbol["in"]:
+            bmp = self._draw(s, canvas_size)
             bitmap.paste(bmp, mask=bmp)
-            logstrings.append(ls)
 
-        return bitmap, "in[{}]".format("-".join(logstrings))
+        return bitmap
 
-    # "stack" composition function. Recursively samples each element from the sample list, then draws them in a canvas_size image.
-    def sample_stack(self, sample, canvas_size):
+    # "stack" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_stack(self, symbol, canvas_size):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        child_canvas = ( self.size_noise + max(*self.sizes.values(), canvas_size[0]),
-                         self.size_noise + max(*self.sizes.values(), canvas_size[1] // len(sample["stack"])))
-
-        logstrings = []
+        child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0]),
+                        self.size_noise + max(*self.size_values, canvas_size[1] // len(symbol["stack"])))
         bitmaps = []
 
-        if sample["shuffled"]:
-            self.rng.shuffle(sample["stack"])
-
-        for s in sample["stack"]:
-            bmp, ls = self.sample(s, child_canvas)
-            logstrings.append(ls)
+        for s in symbol["stack"]:
+            bmp = self._draw(s, child_canvas)
             bitmaps.append(bmp)
 
         step = canvas_size[1] / (len(bitmaps) + 1)
@@ -340,24 +198,19 @@ class Task:
 
             bitmap.paste(bitmaps[i], (x0, y0), mask=bitmaps[i])
 
-        return bitmap, "stack[{}]".format("-".join(logstrings))
+        return bitmap
 
-    # "side_by_side" composition function. Recursively samples each element from the sample list, then draws them in a canvas_size image.
-    def sample_sbs(self, sample, canvas_size):
+    # "side_by_side" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_sbs(self, symbol, canvas_size):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        child_canvas = ( self.size_noise + max(*self.sizes.values(), canvas_size[0] // len(sample["side_by_side"])),
-                         self.size_noise + max(*self.sizes.values(), canvas_size[1]) )
+        child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // len(symbol["side_by_side"])),
+                        self.size_noise + max(*self.size_values, canvas_size[1]))
 
-        logstrings = []
         bitmaps = []
 
-        if sample["shuffled"]:
-            self.rng.shuffle(sample["side_by_side"])
-
-        for s in sample["side_by_side"]:
-            bmp, ls = self.sample(s, child_canvas )
-            logstrings.append(ls)
+        for s in symbol["side_by_side"]:
+            bmp = self._draw(s, child_canvas)
             bitmaps.append(bmp)
 
         step = canvas_size[0] / (len(bitmaps) + 1)
@@ -368,24 +221,19 @@ class Task:
 
             bitmap.paste(bitmaps[i], (x0, y0), mask=bitmaps[i])
 
-        return bitmap, "side_by_side[{}]".format("-".join(logstrings))
+        return bitmap
 
-    # "diagonal_ul_lr" composition function. Recursively samples each element from the sample list, then draws them in a canvas_size image.
-    def sample_ullr(self, sample, canvas_size):
+    # "diag_ul_lr" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_ullr(self, symbol, canvas_size):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        child_canvas = ( self.size_noise + max(*self.sizes.values(), canvas_size[0] // len(sample["diagonal_ul_lr"])),
-                         self.size_noise + max(*self.sizes.values(), canvas_size[1] // len(sample["diagonal_ul_lr"])))
+        child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // len(symbol["diag_ul_lr"])),
+                        self.size_noise + max(*self.size_values, canvas_size[1] // len(symbol["diag_ul_lr"])))
 
-        logstrings = []
         bitmaps = []
 
-        if sample["shuffled"]:
-            self.rng.shuffle(sample["diagonal_ul_lr"])
-
-        for s in sample["diagonal_ul_lr"]:
-            bmp, ls = self.sample(s, child_canvas)
-            logstrings.append(ls)
+        for s in symbol["diag_ul_lr"]:
+            bmp = self._draw(s, child_canvas)
             bitmaps.append(bmp)
 
         step = 1 / (len(bitmaps) + 1)
@@ -397,24 +245,19 @@ class Task:
 
             bitmap.paste(bitmaps[i], (x0, y0), mask=bitmaps[i])
 
-        return bitmap, "diag1[{}]".format("-".join(logstrings))
+        return bitmap
 
-    # "diagonal_ll_ur" composition function. Recursively samples each element from the sample list, then draws them in a canvas_size image.
-    def sample_llur(self, sample, canvas_size):
+    # "diag_ll_ur" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_llur(self, symbol, canvas_size):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        child_canvas = ( self.size_noise + max(*self.sizes.values(), canvas_size[0] // len(sample["diagonal_ll_ur"])),
-                         self.size_noise + max(*self.sizes.values(), canvas_size[1] // len(sample["diagonal_ll_ur"])))
+        child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // len(symbol["diag_ll_ur"])),
+                        self.size_noise + max(*self.size_values, canvas_size[1] // len(symbol["diag_ll_ur"])))
 
-        logstrings = []
         bitmaps = []
 
-        if sample["shuffled"]:
-            self.rng.shuffle(sample["diagonal_ll_ur"])
-
-        for s in sample["diagonal_ll_ur"]:
-            bmp, ls = self.sample(s, child_canvas)
-            logstrings.append(ls)
+        for s in symbol["diag_ll_ur"]:
+            bmp = self._draw(s, child_canvas)
             bitmaps.append(bmp)
 
         step = 1 / (len(bitmaps) + 1)
@@ -426,28 +269,22 @@ class Task:
 
             bitmap.paste(bitmaps[i], (x0, y0), mask=bitmaps[i])
 
-        return bitmap, "diag2[{}]".format("-".join(logstrings))
+        return bitmap
 
-    # "grid" composition function. Recursively samples each element from the sample list, then draws them in a canvas_size image.
-    def sample_grid(self, sample, canvas_size):
+    # "grid" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_grid(self, symbol, canvas_size):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        n = math.ceil(math.sqrt(len(sample["grid"])))
+        n = int(np.ceil(np.sqrt(len(symbol["grid"]))))
 
-        child_canvas = ( self.size_noise + max(*self.sizes.values(), canvas_size[0] // n),
-                         self.size_noise + max(*self.sizes.values(), canvas_size[1] // n))
+        child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // n),
+                        self.size_noise + max(*self.size_values, canvas_size[1] // n))
 
-        logstrings = []
         bitmaps = []
 
-        if sample["shuffled"]:
-            self.rng.shuffle(sample["grid"])
-
-        for s in sample["grid"]:
-            bmp, ls = self.sample(s, child_canvas)
-            logstrings.append(ls)
+        for s in symbol["grid"]:
+            bmp = self._draw(s, child_canvas)
             bitmaps.append(bmp)
-
 
         for i in range(len(bitmaps)):
             j = (i % n)
@@ -458,157 +295,426 @@ class Task:
 
             bitmap.paste(bitmaps[i], (x0, y0), mask=bitmaps[i])
 
-        return bitmap, "grid[{}]".format("-".join(logstrings))
+        return bitmap
 
-    # "random" composition function. Recursively samples each element from the sample list, then draws them in a canvas_size image.
-    def sample_random(self, sample, canvas_size):
+    # "random" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_random(self, symbol, canvas_size):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        logstrings = []
-
-        for s in sample["random"]:
-            bmp, ls = self.sample(s, canvas_size)
-            m = max(self.sizes.values()) + self.size_noise
+        for s in symbol["random"]:
+            bmp = self._draw(s, canvas_size)
+            m = max(self.size_values) + self.size_noise
             x0 = self.rng.randint(m // 2, canvas_size[0] - m // 2) - canvas_size[0] // 2
             y0 = self.rng.randint(m // 2, canvas_size[1] - m // 2) - canvas_size[1] // 2
             x1 = x0 + canvas_size[0]
             y1 = y0 + canvas_size[1]
 
             bitmap.paste(bmp, (x0, y0, x1, y1), mask=bmp)
-            logstrings.append(ls)
 
-        return bitmap, "random[{}]".format("-".join(logstrings))
+        return bitmap
 
-    # Wrapper for the recursive sampling procedure.
-    def sample(self, sample_set, canvas_size):
-        if isinstance(sample_set, list):
-            sample = self.rng.choice(sample_set)
+    # Wrapper for the recursive drawing procedure.
+    def _draw(self, symbol, canvas_size):
+        if "in" in symbol.keys():
+            return self._draw_in(symbol, canvas_size)
+        elif "stack" in symbol.keys():
+            return self._draw_stack(symbol, canvas_size)
+        elif "side_by_side" in symbol.keys():
+            return self._draw_sbs(symbol, canvas_size)
+        elif "diag_ul_lr" in symbol.keys():
+            return self._draw_ullr(symbol, canvas_size)
+        elif "diag_ll_ur" in symbol.keys():
+            return self._draw_llur(symbol, canvas_size)
+        elif "grid" in symbol.keys():
+            return self._draw_grid(symbol, canvas_size)
+        elif "random" in symbol.keys():
+            return self._draw_random(symbol, canvas_size)
         else:
-            sample = sample_set
-
-
-        if "in" in sample.keys():
-            return self.sample_in(sample, canvas_size)
-        elif "stack" in sample.keys():
-            return self.sample_stack(sample, canvas_size)
-        elif "side_by_side" in sample.keys():
-            return self.sample_sbs(sample, canvas_size)
-        elif "diagonal_ul_lr" in sample.keys():
-            return self.sample_ullr(sample, canvas_size)
-        elif "diagonal_ll_ur" in sample.keys():
-            return self.sample_llur(sample, canvas_size)
-        elif "grid" in sample.keys():
-            return self.sample_grid(sample, canvas_size)
-        elif "random" in sample.keys():
-            return self.sample_random(sample, canvas_size)
-        else:
-            return self.sample_base_object(sample, canvas_size)
+            return self._draw_base_object(symbol, canvas_size)
 
     # Upper level wrapper. Draws the sample and then removes transparency and adds a padding.
-    # It returns both the image and a logstring describing the objects in the image (useful for logging or symbolic processing).
-    def draw_sample(self, sample_set):
+    def _draw_sample(self, symbol):
         w = self.canvas_size[0] - self.padding
         h = self.canvas_size[1] - self.padding
-        bitmap, logstring = self.sample(sample_set, (w,h))
+
+        bitmap = self._draw(symbol, (w, h))
 
         out = Image.new('RGBA', self.canvas_size, self.bg_color)
         out.paste(bitmap, (self.padding // 2, self.padding // 2), mask=bitmap)
 
-        return out.convert('RGB'), logstring
+        return out.convert('RGB')
 
-    # Outputs a supervised triple (anchor, positive, negative).
-    def sample_supervised(self, split=None):
-        if self.random_sampling or split is None:
-            return self.draw_sample(self.positive_samples), self.draw_sample(self.positive_samples), self.draw_sample(self.negative_samples)
-        else:
-            assert split in ["train", "val", "test"]
-            if split == "train":
-                return self.draw_sample(self.train_p), self.draw_sample(self.train_p), self.draw_sample(self.train_n)
-            elif split == "val":
-                return self.draw_sample(self.val_p), self.draw_sample(self.val_p), self.draw_sample(self.val_n)
-            elif split == "test":
-                return self.draw_sample(self.test_p), self.draw_sample(self.test_p), self.draw_sample(self.test_n)
+    # Upper level wrapper. Samples a random symbol from a sample set (positive/negative).
+    def _sample_symbol(self, sample_set):
+        assert sample_set in ["positive", "negative"]
 
-    # Outputs an unsupervised sample (anchor, None, None).
-    def sample_unsupervised(self, positive, split=None):
-        if self.random_sampling or split is None:
-            if positive:
-                return self.draw_sample(self.positive_samples), None, None
-            else:
-                return self.draw_sample(self.negative_samples), None, None
-        else:
-            assert split in ["train", "val", "test"]
-            if split == "train":
-                if positive:
-                    return self.draw_sample(self.train_p), None, None
+        self.dirty = True
+        sample = self._recursive_sampling(self.rng.choice(self.sample_sets[sample_set]))
+
+        return sample
+
+    # Wrapper for the recursive sampling procedure. It descends on the structure and grounds negations (not_), disjuntions (a|b) or don't care (~) attributes.
+    def _recursive_sampling(self, symbol):
+        if isinstance(symbol, dict):
+            sizes = [list(x.keys())[0] for x in self.sizes]
+            colors = [list(x.keys())[0] for x in self.colors]
+
+            out = {}
+
+            comp_ops = list(set(symbol.keys()).intersection(self.compositional_operators))
+            list_ops = list(set(symbol.keys()).intersection(set(self.list_operators.keys())))
+            operators = comp_ops + list_ops
+
+            if len(operators) == 0:
+
+                if symbol["shape"] is None:
+                    out["shape"] = self.rng.choice(self.shapes)
+                elif symbol["shape"].startswith("not_"):
+                    out["shape"] = self.rng.choice(list(set(self.shapes) - {symbol["shape"][4:]}))
                 else:
-                    return self.draw_sample(self.train_n), None, None
-            elif split == "val":
-                if positive:
-                    return self.draw_sample(self.val_p), None, None
+                    out["shape"] = self.rng.choice(symbol["shape"].split("|"))
+
+                if symbol["color"] is None:
+                    out["color"] = self.rng.choice(colors)
+                elif symbol["color"].startswith("not_"):
+                    out["color"] = self.rng.choice(list(set(colors) - {symbol["color"][4:]}))
                 else:
-                    return self.draw_sample(self.val_n), None, None
-            elif split == "test":
-                if positive:
-                    return self.draw_sample(self.test_p), None, None
+                    out["color"] = self.rng.choice(symbol["color"].split("|"))
+
+                if symbol["size"] is None:
+                    out["size"] = self.rng.choice(sizes)
+                elif symbol["size"].startswith("not_"):
+                    out["size"] = self.rng.choice(list(set(sizes) - {symbol["size"][4:]}))
                 else:
-                    return self.draw_sample(self.test_n), None, None
+                    out["size"] = self.rng.choice(symbol["size"].split("|"))
+            elif len(comp_ops) == 1:
+                out[comp_ops[0]] = self._recursive_sampling(symbol[comp_ops[0]])
+            elif len(list_ops) == 1:
+                if len(self.list_operators[list_ops[0]]) == 0:
+                    out[list_ops[0]] = self._recursive_sampling(symbol[list_ops[0]])
+                else:
+                    out[list_ops[0]] = {}
+                    for k in self.list_operators[list_ops[0]]:
+                        out[list_ops[0]][k] = symbol[list_ops[0]][k]
 
-    # Produces size supervised triples (anchor, positive, negative) as a list of tuples. If converted to numpy the shape would be (size, apn=3, width, height, rgb=3).
-    def get_batch(self, size, split=None):
-        return [self.sample_supervised(split) for _ in range(size)]
+                    out[list_ops[0]]["list"] = self._recursive_sampling(symbol[list_ops[0]]["list"])
 
-    # Teacher generator. It samples a decision and generates images accordingly. Sampling alternates old tasks and the current one, to avoid starvation.
-    # If split=None, the number of samples generated is guaranted to be at least self.total (in case it never samples from past tasks) and at most 2*self.total (in case at each step it decides to sample from past tasks).
-    # Otherwise it guarantees self.total * split percentage (as specified for each task in the curriculum JSON).
-    def get_decision(self, split="train"):
-        self.log("BEGINNING TASK {} (Split: {})".format(self.name, split))
-
-        if self.random_sampling:
-            split_samples = self.total_samples
-        elif split == "train":
-            split_samples = int(self.total_samples * self.train_split)
-        elif split == "val":
-            split_samples = int(self.total_samples * self.val_split)
-        elif split == "test":
-            split_samples = self.total_samples - int(self.total_samples * self.train_split) - int(self.total_samples * self.val_split)
         else:
-            split_samples = self.total_samples
-        self.log("Number of samples: {} (total), {} (current split), alpha: {}, beta: {}, gamma: {}".format(self.total_samples, split_samples, self.alpha, self.beta, self.gamma))
+            out = [self._recursive_sampling(s) for s in symbol]
+
+        return out
+
+
+    # Wrapper for the operator expansion procedure. It descends on the structure and replaces list operators with expanded lists, flattening singleton entries.
+    # In order to preserve semantics of many operators (palindrome, repeat, etc.), it must be performed AFTER sampling atomic attributes.
+    def _expand_symbol(self, symbol):
+        if isinstance(symbol, dict):
+            list_ops = list(set(symbol.keys()).intersection(set(self.list_operators.keys())))
+            comp_ops = list(set(symbol.keys()).intersection(self.compositional_operators))
+
+            if len(list_ops) + len(comp_ops) == 0:
+                out = symbol
+            elif len(comp_ops) == 1:
+                out = {comp_ops[0]: self._expand_symbol(symbol[comp_ops[0]])}
+            elif len(list_ops) == 1:
+                op = list_ops[0]
+                if len(self.list_operators[op]) == 0:
+                    if op == "permute":
+                        out = self._expand_permute(self._expand_symbol(symbol[op]))
+                    elif op == "palindrome":
+                        out = self._expand_palindrome(self._expand_symbol(symbol[op]))
+                    elif op == "mirror":
+                        out = self._expand_mirror(self._expand_symbol(symbol[op]))
+                else:
+                    if op == "sample":
+                        out = self._expand_sample(self._expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "pick":
+                        out = self._expand_pick(self._expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "first":
+                        out = self._expand_first(self._expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "last":
+                        out = self._expand_last(self._expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "shift":
+                        out = self._expand_shift(self._expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "repeat":
+                        out = self._expand_repeat(self._expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "sort":
+                        out = self._expand_sort(self._expand_symbol(symbol[op]["list"]), symbol[op]["order"],
+                                                symbol[op]["keys"])
+                    elif op == "random_repeat":
+                        out = self._expand_random_repeat(self._expand_symbol(symbol[op]["list"]), symbol[op]["min"],
+                                                         symbol[op]["max"])
+        else:
+            out = []
+            for s in symbol:
+                tmp = self._expand_symbol(s)
+                if isinstance(tmp, list):
+                    out.extend(tmp)
+                else:
+                    out.append(tmp)
+
+        return out
+
+    # Expands a palindrome() list. The final element acts as a pivot, hence it is not repeated.
+    def _expand_palindrome(self, l):
+        return l + l[-2::-1]
+
+    # Expands a mirror() list. The final element is repeated as well.
+    def _expand_mirror(self, l):
+        return l + l[-1::-1]
+
+    # Expands a permute() list with a random permutation.
+    def _expand_permute(self, l):
+        return list(self.rng.permutation(l))
+
+    # Expands a sample() list. It returns a random sampling with replacement.
+    def _expand_sample(self, l, n):
+        return list(self.rng.choice(l, n, replace=True))
+
+    # Expands a pick() list. It returns a random sampling without replacement.
+    def _expand_pick(self, l, n):
+        return list(self.rng.choice(l, n, replace=False))
+
+    # Expands a first(n) list. It returns the first n elements of the list.
+    def _expand_first(self, l, n):
+        return l[:n]
+
+    # Expands a last(n) list. It returns the last n elements of the list (order is not inverted).
+    def _expand_last(self, l, n):
+        return l[-n:]
+
+    # Expands a shift(n) list. It returns a barrel shift of n steps (>0 to the right, <0 to the left) of the list.
+    def _expand_shift(self, l, n):
+        return l[n % len(l):] + l[:n % len(l)]
+
+    # Expands a repeat(n) list. It returns n copies of the list.
+    def _expand_repeat(self, l, n):
+        return l * n
+
+    # Expands a sort(order, keys) list. It returns the first n elements of the list.
+    # Order: asc, desc.
+    # Keys: n (number of sub-objects), shape (circle < triangle < square), color (), size (small < large).
+    # If the list has at least one composition operator, the only valid key is n. Atomic objects have n=1, compositional objects have n=len(children), no recursion is performed to count total leaves.
+    # Multiple keys are evaluated left to right, so sorting by [shape, color] means that the key color will affect only the order between objects with the same shape.
+    def _expand_sort(self, l, order, keys):
+        assert re.match("^(asc|desc)$", order,
+                        flags=re.IGNORECASE) is not None, "Invalid order, expected ['asc', 'desc'], found: {}".format(
+            order)
+
+        possible_keys = ["n", "shape", "color", "size"]
+        for k in keys:
+            assert k in possible_keys, "Invalid sorting key, expected {}, found {}.".format(possible_keys, k)
+
+        has_compositions = False
+        for x in l:
+            has_compositions = has_compositions or "shape" not in x.keys()
+
+        assert not has_compositions or len(keys) == 1 and keys[
+            0] == "n", "The only allowed sorting key for lists with non-atomic elements is ['n'], found {}.".format(
+            keys)
+
+        # Assign a weight for each key:
+        sorting_weights = {"n": 0, "shape": 0, "color": 0, "size": 0}
+        for i, k in enumerate(keys):
+            sorting_weights[k] = 10 ** (
+                        2 * (4 - i))  # n-shape-color-size -> n = 100000000, shape = 1000000, color = 10000, size = 100.
+
+        sorting_scores = []
+        if not has_compositions:
+            for x in l:
+                score = 0
+                if "shape" in x.keys():
+                    score += sorting_weights["n"] * 1
+
+                    score += sorting_weights["shape"] * (self.shapes.index(x["shape"]) + 1)
+                    for i, y in enumerate(self.colors):
+                        if x["color"] in y.keys():
+                            score += sorting_weights["color"] * (i + 1)
+                    for i, y in enumerate(
+                            self.sizes):  # Sort by the order in self.sizes list, not by effective pixel-size
+                        if x["size"] in y.keys():
+                            score += sorting_weights["size"] * y[x["size"]]
+
+                if order == "desc":
+                    score *= -1
+                sorting_scores.append(score)
+
+        else:
+            for x in l:
+                if "shape" in x.keys():
+                    score = sorting_weights["n"] * 1
+                else:
+                    score = sorting_weights["n"] * len(x[list(x.keys())[0]])
+
+                if order == "desc":
+                    score *= -1
+                sorting_scores.append(score)
+
+        sorted_idx = np.argsort(sorting_scores, kind="stable")  # Numpy defaults to quicksort, which is not stable.
+
+        return [l[i] for i in sorted_idx]
+
+    # Expands a random_repeat(min, max) list. It returns a random number of copies of the list between min and max (inclusive).
+    def _expand_random_repeat(self, l, min, max):
+        assert min < max
+        n = self.rng.randint(min, max + 1)
+        return l * n
+
+    # Prefetches symbols for the task. It performs rejection sampling to generate self.total_samples unique samples.
+    # If it fails for self.patience successive trials, it gives up and the smaller set will be sampled with repetition.
+    # The generated samples (whether they are enough or not) is finally randomly partitioned into train, validation and test splits.
+    # Since injected noise is entirely perceptual, samples are considered unique based on their symbolic representation.
+    def _prefetch_samples(self):
+        self.dirty = True
+        assert self.train_split > 0
+        assert self.val_split > 0
+        assert self.train_split + self.val_split < 1.0
+
+        symbol_hash = set()
+
         i = 0
+        # TODO: BUG!!! Rejection sampling done in this way follows the dataset balance because a 0.5 probability combined with the probability of having exhausted a sampling set skews the total probability towards the larger set.
+        #       It is non-trivial to balance samples if one of the two sets is exhausted and the other is not, because we may loose diversity on the second one...
+        while len(self.symbol_set) < self.total_samples and i < self.patience:
+            label = self.rng.randint(0, 2)
+            sample_set = "positive" if label == 1 else "negative"
+            symbol = self._expand_symbol(self._sample_symbol(sample_set))
+            if str(symbol) not in symbol_hash:  # Assuming no symbol is both positive and negative, otherwise the task is ill defined.
+                symbol_hash.add(str(symbol))
+                self.symbol_set.append((symbol, label))
+                i = 0
+            else:
+                i += 1
 
-        scale = (np.log(self.gamma / self.beta)) / (self.gamma * split_samples) # Guarantee a minimum probability of beta and a maximum of gamma. See appendix for an explanation.
+        if len(self.symbol_set) < self.total_samples:
+            self._log(
+                "Ran out of patience while generating samples (Requested: {}, generated: {}). Will sample with repetition.".format(
+                    self.total_samples, len(self.symbol_set)), "warning")
+            self.with_replacement = True
+        else:
+            self._log(
+                "Samples generated successfully (Requested: {}, generated: {}). Will sample without repetition.".format(
+                    self.total_samples, len(self.symbol_set)), "debug")
+            self.with_replacement = False
+
+        train_samples = int(np.ceil(self.train_split * len(self.symbol_set)))
+        val_samples = int(np.ceil(self.val_split * len(self.symbol_set)))
+        test_samples = len(self.symbol_set) - train_samples - val_samples
+
+        train_req = int(np.ceil(self.train_split * self.total_samples))
+        val_req = int(np.ceil(self.val_split * self.total_samples))
+        test_req = self.total_samples - train_samples - val_samples
+
+        assert train_samples > 0
+        assert val_samples > 0
+        assert test_samples > 0
+
+        self.rng.shuffle(self.symbol_set)
+
+        self.datasets["train"] = self.symbol_set[:train_samples]
+        self.datasets["val"] = self.symbol_set[train_samples: train_samples + val_samples]
+        self.datasets["test"] = self.symbol_set[train_samples + val_samples:]
 
 
-        while i < split_samples:
-            # 1. Extract from a geometric distribution alpha * (1 - alpha)**j the probability of sampling from old task -j.
-            # It stops at the first successful decision. If every decision fails, it extracts no samples from the past.
-            for j in range(len(self.past_tasks)):
-                if self.rng.random() < self.alpha * (1 - self.alpha) ** j:
-                    (s_a, logstring_a),(s_p, logstring_p),(s_n, logstring_n) = self.past_tasks[len(self.past_tasks) - j - 1].sample_supervised(split)
-                    self.log("SUPERVISED SAMPLE FROM OLD TASK {}: {}".format(self.past_tasks[len(self.past_tasks) - j - 1].name, (logstring_a, logstring_p, logstring_n)))
-                    yield self.past_tasks[len(self.past_tasks) - j - 1].task_id, s_a, s_p, s_n
-                    break # Stop at the first success.
+        return train_samples, val_samples, test_samples, train_req, val_req, test_req
 
-            # 2. Extract from an exponential distribution the decision of providing a supervised or unsupervised sample.
+    # Outputs a supervised element (img, label, id, symbolic structure). The symbolic structure is a recursive combination of atomic objects, dictionaries and lists.
+    def sample_supervised(self, split=None):
+        self.dirty = True
+        assert split is None or split in ["train", "val", "test"]
+
+        if split is None:
+            split = "train"
+
+        if self.with_replacement:
+            (symbol, label) = self.datasets[split][self.rng.choice(len(self.datasets[split]))]
+        else:
+            assert self.idx[split] < len(self.datasets[split]), "Index out of range for dataset {}.".format(split)
+
+            (symbol, label) = self.datasets[split][self.idx[split]]
+            self.idx[split] += 1
+
+        sample_img = self._draw_sample(symbol)
+
+        return sample_img, (+1 if label == 1 else -1), self.task_id, symbol
+
+    # Outputs an unsupervised sample. It simply masks the label of a supervised sample.
+    def sample_unsupervised(self, split=None):
+        self.dirty = True
+        sample_img, _, _, symbol = self.sample_supervised(split)
+
+        return sample_img, 0, self.task_id, symbol
+
+    # Produces a batch of supervised samples. If there are enough unique samples, the last batch may contain fewer elements (self.total_samples % batch_size).
+    def get_batch(self, batch_size, split=None):
+        assert split is None or split in ["train", "val", "test"]
+
+        if split is None:
+            split = "train"
+
+        self.dirty = True
+
+        if self.with_replacement: # If sampling is performed with replacement, it always outputs a full batch.
+            out = [self.sample_supervised(split) for _ in range(batch_size)]
+        else: # Otherwise, if the number of remaining samples is not enough to fill a batch, it outputs a smaller amount of them.
+            out = []
+            for i in range(min(batch_size, len(self.datasets[split]) - self.idx[split])):
+                out.append(self.sample_supervised(split))
+
+        return out
+
+    # Teacher generator. It samples a decision and generates images accordingly.
+    # The stream ends after self.total_samples * split_percentage samples, regardless of sampling mode (with or without replacement).
+    # Supervisions are exponentially decayed with initial (i = 0) probability of self.gamma and final probability (i = self.total_samples * split_percentage) of self.beta.
+    def get_stream(self, split=None):
+        assert split is None or split in ["train", "val", "test"]
+        if split is None:
+            split = "train"
+
+        self._log("BEGINNING TASK {} (Split: {}). Sampling is with{} replacement.".format(self.name, split, (
+            "" if self.with_replacement else "out")))
+
+        self.reset()
+        self.dirty = True
+
+        split_samples = self.requested_samples[split]
+
+        self._log("Number of samples: {} (total), {} (current split), beta: {}, gamma: {}".format(self.total_samples,
+                                                                                                  split_samples,
+                                                                                                  self.beta, self.gamma))
+
+        scale = (np.log(self.gamma / self.beta)) / (
+                    self.gamma * split_samples)  # Guarantee a minimum probability of beta and a maximum of gamma. See appendix for an explanation.
+
+        for i in range(split_samples):
+            # Extract from an exponential distribution the decision of providing a supervised or unsupervised sample.
             # Each sample is guaranteed to be supervised with at least a probability of beta.
             t = i * scale
             if self.rng.random() < self.gamma * np.exp(-self.gamma * t):
-                (s_a, logstring_a),(s_p, logstring_p),(s_n, logstring_n) = self.sample_supervised(split)
-                self.log("SUPERVISED SAMPLE: {}".format((logstring_a, logstring_p, logstring_n)))
-                yield self.task_id, s_a, s_p, s_n
+                sample_img, label, task_id, symbol = self.sample_supervised(split)
+                self._log("SUPERVISED SAMPLE: {}".format(symbol))
+                yield sample_img, label, task_id, symbol
             else:
-                if self.rng.randint(0, 2) == 1:
-                    (s_a, logstring_a),_, _ = self.sample_unsupervised(True, split)
-                    self.log("UNSUPERVISED SAMPLE (POSITIVE): {}".format((logstring_a)))
-                else:
-                    (s_a, logstring_a), _, _ = self.sample_unsupervised(False, split)
-                    self.log("UNSUPERVISED SAMPLE (NEGATIVE): {}".format((logstring_a)))
-                yield self.task_id, s_a, None, None
+                sample_img, label, task_id, symbol = self.sample_unsupervised(split)
+                self._log("UNSUPERVISED SAMPLE: {}".format(symbol))
+                yield sample_img, label, task_id, symbol
 
-            i += 1
+        self._log("END OF TASK {}".format(self.name))
 
-        self.log("END OF TASK {}".format(self.name))
+    # Resets the internal state of the task, including the random generator for reproducibility of results.
+    def reset(self):
+        if self.dirty:
+            self.dirty = False
+            self.rng.seed(self.seed)
+            self.symbol_set = []
+            self.datasets = {"train": [], "val": [], "test": []}
+            self.with_replacement = True
+
+            self.idx = {"train": 0, "val": 0, "test": 0}
+
+            self.samples = {}
+            self.requested_samples = {}
+            self.samples["train"], self.samples["val"], self.samples["test"], self.requested_samples["train"], self.requested_samples["val"], self.requested_samples["test"] = self._prefetch_samples()
 
 
 # Curriculum generator class. It wraps multiple tasks into a single object.
@@ -617,18 +723,202 @@ class CurriculumGenerator:
         self.tasks = []
         self.current_task = 0
 
+
         self.logger = logger
         self.config = {}
-        self.parse_config(json.loads(config))
-        self.rng = np.random.RandomState(self.config["seed"])
-        self.parse_curriculum(json.loads(curriculum))
-        
 
+        # Hard-coded settings which would require rewriting functions.
+        self.config["shapes"] = ["circle", "triangle", "square"]
+        self.config["mandatory_keys"] = {"name": str, "beta": float, "gamma": float, "samples": int,
+                                         "train_split": float, "val_split": float, "noisy_color": bool,
+                                         "noisy_size": bool, "positive_set": list, "negative_set": list}
+        self.config["list_operators"] = {"sample": {"n": int}, "pick": {"n": int}, "first": {"n": int},
+                                         "last": {"n": int},
+                                         "permute": {}, "shift": {"n": int}, "sort": {"order": str, "keys": list},
+                                         "palindrome": {}, "mirror": {}, "repeat": {"n": int},
+                                         "random_repeat": {"min": int, "max": int}
+                                         }  # key, params
+        self.config["compositional_operators"] = ["in", "random", "stack", "side_by_side", "grid", "diag_ul_lr",
+                                                  "diag_ll_ur"]
 
-    # Parse the global configuration JSON.
-    def parse_config(self, config):
+        # Configurable settings.
+        with open(config, "r") as file:
+            try:
+                self._parse_config(yaml.safe_load(file))
+            except yaml.YAMLError as e:
+                print(e)
+
+        self.rng = np.random.RandomState(self.config["seed"])  # Serve per il task id corruption...
+
+        # Curriculum specifications.
+        with open(curriculum, "r") as file:
+            try:
+                self._parse_curriculum(yaml.safe_load(file))
+            except yaml.YAMLError as e:
+                print(e)
+
+    # Validates a configuration YAML file.
+    # Colors and sizes are lists of single-key dictionaries, so that sort() can infer an order relation between entries.
+    def validate_config(self, config):
+        assert isinstance(config, dict), "The configuration must be a dictionary."
+
+        assert "seed" in config, "Missing mandatory key seed."
+        assert isinstance(config["seed"], int), "seed must be int, found {}.".format(type(config["seed"]))
+
+        assert "canvas_size" in config, "Missing mandatory key canvas_size."
+        assert isinstance(config["canvas_size"], list), "canvas_size must be a list, found {}.".format(
+            type(config["canvas_size"]))
+        assert len(config["canvas_size"]) == 2, "canvas_size must have exactly 2 elements, found {}.".format(
+            len(config["canvas_size"]))
+        assert isinstance(config["canvas_size"][0], int), "Canvas width (canvas_size[0]) must be int, found {}.".format(
+            type(config["canvas_size"][0]))
+        assert isinstance(config["canvas_size"][1],
+                          int), "Canvas height (canvas_size[1]) must be int, found {}.".format(
+            type(config["canvas_size"][1]))
+
+        assert "padding" in config, "Missing mandatory key padding."
+        assert isinstance(config["padding"], int), "padding must be int, found {}.".format(type(config["padding"]))
+        assert config["padding"] >= 0, "padding must be non negative, found {}.".format(config["padding"])
+
+        assert "size_noise" in config, "Missing mandatory key size_noise."
+        assert isinstance(config["size_noise"], int), "size_noise must be int, found {}.".format(
+            type(config["size_noise"]))
+        assert config["size_noise"] >= 0, "size_noise must be non negative, found {}.".format(config["size_noise"])
+
+        assert "h_sigma" in config, "Missing mandatory key h_sigma."
+        assert isinstance(config["h_sigma"], float), "h_sigma must be float, found {}.".format(type(config["h_sigma"]))
+        assert config["h_sigma"] >= 0, "h_sigma must be non negative, found {}.".format(config["h_sigma"])
+
+        assert "s_sigma" in config, "Missing mandatory key s_sigma."
+        assert isinstance(config["s_sigma"], float), "s_sigma must be float, found {}.".format(type(config["s_sigma"]))
+        assert config["s_sigma"] >= 0, "s_sigma must be non negative, found {}.".format(config["s_sigma"])
+
+        assert "v_sigma" in config, "Missing mandatory key v_sigma."
+        assert isinstance(config["v_sigma"], float), "v_sigma must be float, found {}.".format(type(config["v_sigma"]))
+        assert config["v_sigma"] >= 0, "v_sigma must be non negative, found {}.".format(config["v_sigma"])
+
+        assert "bg_color" in config, "Missing mandatory key bg_color."
+        assert isinstance(config["bg_color"], str), "s_sigma must be a string, found {}.".format(
+            type(config["bg_color"]))
+        assert re.match("^#[0-9a-f]{6}$", config["bg_color"],
+                        flags=re.IGNORECASE) is not None, "bg_color must be an #rrggbb color, found {}.".format(
+            config["bg_color"])
+
+        assert "sizes" in config, "Missing mandatory key sizes."
+        assert isinstance(config["sizes"], list), "sizes must be a list, found {}.".format(type(config["sizes"]))
+        assert len(config["sizes"]) > 0, "sizes must have at least one element."
+        for x in config["sizes"]:
+            assert isinstance(x, dict), "Elements of sizes must be a dict, found {}.".format(type(x))
+            assert len(x.keys()) == 1, "Elements of sizes must have a single key-value pair, found {}.".format(x)
+            for k, v in x.items():
+                assert isinstance(v, int), "Size {} must be int, found {}.".format(k, type(v))
+
+        assert "colors" in config, "Missing mandatory key colors."
+        assert isinstance(config["colors"], list), "colors must be a list, found {}.".format(type(config["colors"]))
+        assert len(config["colors"]) > 0, "colors must have at least one element."
+        for x in config["colors"]:
+            assert isinstance(x, dict), "Elements of colors must be a dict, found {}.".format(type(x))
+            assert len(x.keys()) == 1, "Elements of colors must have a single key-value pair, found {}.".format(x)
+            for k, v in x.items():
+                assert re.match("^#[0-9a-f]{6}$", v,
+                                flags=re.IGNORECASE) is not None, "{} must be an #rrggbb color, found {}.".format(k, v)
+
+    # Wrapper for recursive validation of a curriculum YAML file.
+    def validate_curriculum(self, curriculum):
+        assert isinstance(curriculum, list), "The curriculum must be a list of tasks."
+
+        for i, t in enumerate(curriculum):
+            assert isinstance(t, dict), "Task {} is not a dictionary.".format(i)
+
+            for k, v in self.config["mandatory_keys"].items():
+                assert k in t, "Missing mandatory key {}".format(k)
+                assert isinstance(t[k], v), "Type mismatch: {} should be of type {}, found {}.".format(k, v, type(t[k]))
+
+            assert len(t["positive_set"]) > 0, "The positive set list cannot be empty."
+            assert len(t["negative_set"]) > 0, "The negative set list cannot be empty."
+
+            self._recursive_validate(t["positive_set"])
+            self._recursive_validate(t["negative_set"])
+
+    # Recursively validates a sample set in the curriculum specification.
+    def _recursive_validate(self, sample_set):
+        if isinstance(sample_set, dict):  # Base case: atomic object.
+
+            assert "shape" in sample_set, "Atomic object must have a shape, found {}.".format(sample_set)
+            assert "color" in sample_set, "Atomic object must have a color, found {}.".format(sample_set)
+            assert "size" in sample_set, "Atomic object must have a size, found {}.".format(sample_set)
+
+            if sample_set["shape"] is None:  # Any value.
+                ok = True
+            elif sample_set["shape"].startswith("not_"):  # Negation.
+                ok = sample_set["shape"][4:] in self.config["shapes"]
+            else:  # Disjunction or single value.
+                tmp = sample_set["shape"].split("|")
+                ok = True
+                for i in tmp:
+                    ok = ok and i in self.config["shapes"]
+
+            assert ok, "Invalid shape. Found {}.".format(sample_set["shape"])
+
+            if sample_set["color"] is None:
+                ok = True
+            elif sample_set["color"].startswith("not_"):
+                ok = sample_set["color"][4:] in [list(x.keys())[0] for x in self.config["colors"]]
+            else:
+                tmp = sample_set["color"].split("|")
+                ok = True
+                for i in tmp:
+                    ok = ok and i in [list(x.keys())[0] for x in self.config["colors"]]
+
+            assert ok, "Invalid color. Found {}.".format(sample_set["color"])
+
+            if sample_set["size"] is None:
+                ok = True
+            elif sample_set["size"].startswith("not_"):
+                ok = sample_set["size"][4:] in [list(x.keys())[0] for x in self.config["sizes"]]
+            else:
+                tmp = sample_set["size"].split("|")
+                ok = True
+                for i in tmp:
+                    ok = ok and i in [list(x.keys())[0] for x in self.config["sizes"]]
+
+            assert ok, "Invalid size. Found {}.".format(sample_set["size"])
+
+        else:  # Recursive case: list.
+            assert isinstance(sample_set, list), "Expected a list, found {}.".format(type(sample_set))
+            for s in sample_set:
+                assert isinstance(s, dict), "Expected a dict, found {}.".format(type(sample_set))
+
+                comp_ops = list(set(s.keys()).intersection(self.config["compositional_operators"]))
+                list_ops = list(set(s.keys()).intersection(self.config["list_operators"].keys()))
+                assert len(comp_ops) + len(
+                    list_ops) <= 1, "There can be at most one operator at this level. Found {}".format(
+                    comp_ops.union(list_ops))
+
+                if len(comp_ops) + len(list_ops) == 0:
+                    self._recursive_validate(s)
+                elif len(comp_ops) == 1:
+                    self._recursive_validate(s[comp_ops[0]])
+                elif len(list_ops) == 1:
+                    op = list_ops[0]
+                    if len(self.config["list_operators"][op]) == 0:
+                        self._recursive_validate(s[op])
+                    else:
+                        for k, v in self.config["list_operators"][op].items():
+                            assert k in s[op], "Missing mandatory parameter {}.".format(k)
+                            assert isinstance(s[op][k], v), "Expected parameter {} of type {}. Found {}.".format(k, v, type(s[op][k]))
+
+                            assert "list" in s[op], "Missing mandatory parameter 'list'."
+                            assert isinstance(s[op]["list"],
+                                              list), "Mandatory parameter 'list' must be a list. Found {}.".format(
+                                type(s[op]["list"]))
+                            self._recursive_validate(s[op]["list"])
+
+    # Parse the global configuration YAML.
+    def _parse_config(self, config):
+        self.validate_config(config)
+
         self.config["seed"] = int(config["seed"])
-        self.config["minimum_split_samples"] = max(1, int(config["minimum_split_samples"]))
         self.config["canvas_size"] = (max(32, int(config["canvas_size"][0])), max(32, int(config["canvas_size"][1])))
         self.config["padding"] = max(0, int(config["padding"]))
         self.config["bg_color"] = config["bg_color"]
@@ -638,116 +928,139 @@ class CurriculumGenerator:
         self.config["h_sigma"] = max(0.0, float(config["h_sigma"]))
         self.config["s_sigma"] = max(0.0, float(config["s_sigma"]))
         self.config["v_sigma"] = max(0.0, float(config["v_sigma"]))
-        self.config["try_disjoint_splits"] = config["try_disjoint_splits"]
 
-    # Parse the curriculum JSON.
-    def parse_curriculum(self, curriculum):
+    # Parse the curriculum YAML.
+    def _parse_curriculum(self, curriculum):
+        self.validate_curriculum(curriculum)
+
         for i, c in enumerate(curriculum):
-            self.tasks.append(Task(self.config, c, i, self.tasks[0:i], self.rng, self.logger))
+            self.tasks.append(Task(i, self.config, c, logger=self.logger))
 
-    # Reset the generator.
+    # Reset the teacher and every task in the curriculum.
     def reset(self):
         self.current_task = 0
+        self.rng.seed(self.config["seed"])
+
+        for t in self.tasks:
+            t.reset()
+
 
     # Generator for the entire curriculum. It visits each task in order and returns a batch. Optionally corrupts the task id.
-    def generate_curriculum(self, split="train", task_id_noise=0.0, batch_size=1):
+    def generate_curriculum(self, split=None, task_id_noise=0.0, batch_size=1):
+
+        assert split in ["train", "val", "test"] or split is None
+        assert 0.0 <= task_id_noise and task_id_noise <= 1.0
+        assert batch_size > 0
+
+        if split is None:
+            split = "train"
+
         self.reset()
         i = 0
         tid_np = np.zeros(batch_size, dtype=np.uint16)
-        a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
-        p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
-        n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        label_np = np.zeros(batch_size, dtype=np.int8)
+        symbols_list = []
 
         while self.current_task < len(self.tasks):
-            for sample in self.tasks[self.current_task].get_decision(split):
+            for sample in self.tasks[self.current_task].get_stream(split):
 
-                tid, a, p, n = sample
+                sample_img, label, tid, symbol = sample
 
                 tid_np[i] = tid
-                a_np[i,:,:,:] = a
-                if p is not None and n is not None:
-                    p_np[i,:,:,:] = p
-                    n_np[i,:,:,:] = n
+                img_np[i, :, :, :] = sample_img
+                label_np[i] = label
+                symbols_list.append(symbol)
 
                 i += 1
 
                 if i >= batch_size:
-                    tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise, self.rng.randint(len(self.tasks)), tid)
+                    tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise,
+                                      self.rng.randint(len(self.tasks), size=batch_size), tid_np)
 
-                    yield tid_np, a_np, p_np, n_np
+                    yield img_np, label_np, tid_np, symbols_list
                     i = 0
                     tid_np = np.zeros(batch_size, dtype=np.uint16)
-                    a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
-                                    dtype=np.uint8)
-                    p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
-                                    dtype=np.uint8)
-                    n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
-                                    dtype=np.uint8)
+                    img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                      dtype=np.uint8)
+                    label_np = np.zeros(batch_size, dtype=np.int8)
+                    symbols_list = []
 
             self.current_task += 1
 
             if i > 0:
-                tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise, self.rng.randint(len(self.tasks)), tid)
-                yield tid_np[:i], a_np[:i,:,:,:], p_np[:i,:,:,:], n_np[:i,:,:,:]
+                tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise,
+                                      self.rng.randint(len(self.tasks), size=i), tid_np[:i])
+                yield img_np[:i, :, :, :], label_np[:i], tid_np[:i], symbols_list
 
-    # Generator for the entire curriculum. Works like generate_curriculum, but samples are sampled randomly from every task (which in turn can decide to provide a previous task sample).
+    # Generator for the entire curriculum. Works like generate_curriculum, but the task from which a sample is extracted is selected randomly.
     # Since each task will be exhausted at some point, sampling is not completely i.i.d., with batches later in the curriculum being sampled from fewer and fewer tasks.
-    def generate_shuffled_curriculum(self, split="train", task_id_noise=0.0, batch_size=1):
+    def generate_shuffled_curriculum(self, split=None, task_id_noise=0.0, batch_size=1):
+        assert split in ["train", "val", "test"] or split is None
+        assert 0.0 <= task_id_noise and task_id_noise <= 1.0
+        assert batch_size > 0
+
+        if split is None:
+            split = "train"
+
         self.reset()
         i = 0
-        task_iterators = [t.get_decision(split) for t in self.tasks]
+        task_iterators = [t.get_stream(split) for t in self.tasks]
 
         tid_np = np.zeros(batch_size, dtype=np.uint16)
-        a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
-        p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
-        n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
+        label_np = np.zeros(batch_size, dtype=np.int8)
+        symbols_list = []
 
         while len(task_iterators) > 0:
             task = self.rng.choice(task_iterators)
 
-
             try:
-                tid, a, p, n = next(task)
+                sample_img, label, tid, symbol = next(task)
 
                 tid_np[i] = tid
-                a_np[i, :, :, :] = a
-                if p is not None and n is not None:
-                    p_np[i, :, :, :] = p
-                    n_np[i, :, :, :] = n
+                img_np[i, :, :, :] = sample_img
+                label_np[i] = label
+                symbols_list.append(symbol)
 
                 i += 1
 
                 if i >= batch_size:
-                    tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise, self.rng.randint(len(self.tasks), size=batch_size), tid_np)
+                    tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise,
+                                      self.rng.randint(len(self.tasks), size=batch_size), tid_np)
 
-                    yield tid_np, a_np, p_np, n_np
+                    yield img_np, label_np, tid_np, symbols_list
                     i = 0
                     tid_np = np.zeros(batch_size, dtype=np.uint16)
-                    a_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
-                                    dtype=np.uint8)
-                    p_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
-                                    dtype=np.uint8)
-                    n_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
-                                    dtype=np.uint8)
+                    img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
+                                      dtype=np.uint8)
+                    label_np = np.zeros(batch_size, dtype=np.int8)
+                    symbols_list = []
             except StopIteration:
                 task_iterators.remove(task)
 
         if i > 0:
-            tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise, self.rng.randint(len(self.tasks), size=i), tid_np[:i])
-            yield tid_np[:i], a_np[:i,:,:,:], p_np[:i,:,:,:], n_np[:i,:,:,:]
+            tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise,
+                                  self.rng.randint(len(self.tasks), size=batch_size), tid_np)
+            yield img_np[:i, :, :, :], label_np[:i], tid_np[:i], symbols_list
 
-    # Returns a test set for task i, composed of size samples.
-    def get_batch(self, i, size, split=None):
+    # Returns a batch for task i.
+    def get_batch(self, i, batch_size, split=None):
         if i < len(self.tasks):
-            return self.tasks[i].get_batch(size, split)
+            return self.tasks[i].get_batch(batch_size, split)
         else:
             raise IndexError()
 
-    # Returns a test set for the current task, composed of size samples.
-    def get_current_batch(self, size, split=None):
-        return self.get_batch(self.current_task, size, split)
+    # Generator for a specific task in the curriculum.
+    def get_stream(self, i, split=None):
+        if i < len(self.tasks):
+            return self.tasks[i].get_stream(split)
+        else:
+            raise IndexError()
 
-
+    # Returns a batch for the current task.
+    def get_current_batch(self, batch_size, split=None):
+        return self.get_batch(self.current_task, batch_size, split)
 
 
 """

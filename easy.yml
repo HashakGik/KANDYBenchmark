@@ -1,0 +1,367 @@
+-
+  name: red triangle vs red square
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: triangle, color: red, size: ~}
+  negative_set:
+  - random:
+    - {shape: square, color: red, size: ~}
+#-
+#  name: triangle vs square (same color)
+#  gamma: 1.0
+#  beta: 1.0
+#  samples: 100
+#  train_split: 0.5
+#  val_split: 0.25
+#  noisy_color: True
+#  noisy_size: True
+#  positive_set:
+#  - random:
+#    - intersection:
+#      - {shape: triangle, color: ~, size: ~}
+#      - store:
+#          alias: color
+#          list:
+#          - pick_before:                                  # NO! Così memorizza pick_before(...)   Bug nell'implementazione di store? (così è come se fosse store_before)
+#              n: 1
+#              list:
+#              - {shape: ~, color: red, size: ~}
+#              - {shape: ~, color: green, size: ~}
+#              - {shape: ~, color: blue, size: ~}
+#              - {shape: ~, color: cyan, size: ~}
+#              - {shape: ~, color: magenta, size: ~}
+#              - {shape: ~, color: yellow, size: ~}
+#  negative_set:
+#  - random:
+#    - intersection:
+#      - {shape: square, color: ~, size: ~}
+#      - recall:                                          # NO! recall recupera la struttura composta pick_before(...), quindi l'intersezione non può essere effettuata
+#          alias: color
+    
+-
+  name: triangle vs square (any color)
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: triangle, color: ~, size: ~}
+  negative_set:
+  - random:
+    - {shape: square, color: ~, size: ~}
+
+-
+  name: triangle vs any (any color)
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: triangle, color: ~, size: ~}
+  negative_set:
+  - random:
+    - {shape: not_triangle, color: ~, size: ~}
+
+-
+  name: red triangle vs any
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: triangle, color: red, size: ~}
+  negative_set:
+  - random:
+    - pick:
+        n: 1
+        list:
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_red, size: ~}
+      
+-
+  name: blue triangle vs any
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: triangle, color: blue, size: ~}
+  negative_set:
+  - random:
+    - pick:
+        n: 1
+        list:
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_blue, size: ~}
+      
+-
+  name: green triangle vs any
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: triangle, color: green, size: ~}
+  negative_set:
+  - random:
+    - pick:
+        n: 1
+        list:
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_green, size: ~}
+      
+-
+  name: red square vs any
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: square, color: ~, size: ~}
+  negative_set:
+  - random:
+    - pick:
+        n: 1
+        list:
+        - {shape: not_square, color: ~, size: ~}
+        - {shape: square, color: not_red, size: ~}
+      
+-
+  name: blue circle vs any
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - {shape: circle, color: blue, size: ~}
+  negative_set:
+  - random:
+    - pick:
+        n: 1
+        list:
+        - {shape: not_circle, color: ~, size: ~}
+        - {shape: circle, color: not_blue, size: ~}
+      
+-
+  name: red triangle on the right
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - side_by_side:
+    - random:
+      - {shape: ~, color: ~, size: ~}
+    - random:
+      - {shape: triangle, color: red, size: ~}
+  negative_set:
+  - side_by_side:
+    - random:
+      - {shape: ~, color: ~, size: ~}
+      - random:
+        - pick:
+            n: 1
+            list:
+            - {shape: not_triangle, color: ~, size: ~}
+            - {shape: triangle, color: not_red, size: ~}
+            
+-
+  name: red triangle on the right and arbitrary objects
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - side_by_side:
+    - {shape: triangle, color: red, size: ~}
+    - random_repeat_before:
+        min: 2
+        max: 5
+        list:
+          - {shape: ~, color: ~, size: ~}
+  negative_set:
+  - side_by_side:
+    - pick:
+        n: 1
+        list:
+          - {shape: not_triangle, color: ~, size: ~}
+          - {shape: triangle, color: not_red, size: ~}
+    - random_repeat_before:
+        min: 2
+        max: 5
+        list:
+          - {shape: ~, color: ~, size: ~}
+          
+-
+  name: red triangle on the right and at least one circle and arbitrary objects
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - side_by_side:
+    - {shape: triangle, color: red, size: ~}
+    - permute:
+      - {shape: circle, color: ~, size: ~}
+      - random_repeat_before:
+          min: 1
+          max: 4
+          list:
+            - {shape: ~, color: ~, size: ~}
+  negative_set:
+  - side_by_side: # De Morgan: o non abbiamo un triangolo rosso
+    - pick:
+        n: 1
+        list:
+          - {shape: not_triangle, color: ~, size: ~}
+          - {shape: triangle, color: not_red, size: ~}
+    - random_repeat_before:
+        min: 2
+        max: 5
+        list:
+          - {shape: ~, color: ~, size: ~}
+  - side_by_side: # Oppure non abbiamo il cerchio
+    - {shape: ~, color: ~, size: ~}
+    - random_repeat_before:
+        min: 2
+        max: 5
+        list:
+          - {shape: not_circle, color: ~, size: ~}
+          
+-
+  name: red triangle on the right and at least one blue object and arbitrary objects
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - side_by_side:
+    - {shape: triangle, color: red, size: ~}
+    - permute:
+      - {shape: ~, color: blue, size: ~}
+      - random_repeat_before:
+          min: 1
+          max: 4
+          list:
+            - {shape: ~, color: ~, size: ~}
+  negative_set:
+  - side_by_side:
+    - pick:
+        n: 1
+        list:
+          - {shape: not_triangle, color: ~, size: ~}
+          - {shape: triangle, color: not_red, size: ~}
+    - random_repeat_before:
+        min: 2
+        max: 5
+        list:
+          - {shape: ~, color: ~, size: ~}
+  - side_by_side:
+    - {shape: ~, color: ~, size: ~}
+    - random_repeat_before:
+        min: 2
+        max: 5
+        list:
+          - {shape: ~, color: not_blue, size: ~}
+          
+#-
+#  name: triangle and square, same color  # Risolvere bug store
+#  gamma: 1.0
+#  beta: 1.0
+#  samples: 100
+#  train_split: 0.5
+#  val_split: 0.25
+#  noisy_color: True
+#  noisy_size: True
+#  positive_set:
+
+ # negative_set:
+ 
+-
+  name: palindrome aba
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - side_by_side:
+    - palindrome:
+      - {shape: ~, color: ~, size: ~}
+      - {shape: ~, color: ~, size: ~}
+  negative_set:
+  - side_by_side:
+    - permute:
+      - palindrome:
+        - {shape: ~, color: ~, size: ~}
+        - {shape: ~, color: ~, size: ~}
+        
+-
+  name: house
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_set:
+  - random:
+    - stack:
+      - {shape: triangle, color: ~, size: ~}
+      - {shape: square, color: ~, size: ~}
+  negative_set:
+  - random:
+    - any_composition:                     # Bassa probabilità, ma non nulla, di pescare esattamente la combinazione stack(triangolo, quadrato)
+      - {shape: ~, color: ~, size: ~}
+      - {shape: ~, color: ~, size: ~}
+  
