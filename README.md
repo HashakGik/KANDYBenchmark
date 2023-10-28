@@ -327,7 +327,7 @@ Additionally for reproducibility, dataset specifications (files `specs.txt`) and
 1. Load annotation file from `samples/sets/{split}/annotations.csv`
 2. Select task of interest by id (or perform multi-task learning)
 3. Compute "global" loss function by multiplexing a supervised loss (when `supervised == 1`) and an unsupervised loss (when `supervised == 0`).
-   A straight-forward differentiable solution could be $$supervised \cdot supervised\_loss(sample, label) + (1 - supervised) \cdot unsupervised\_loss(sample)$$, but unless batch size is 1, more sophisticated approaches are required.
+   A straight-forward differentiable solution could be $supervised \cdot supervised\_loss(sample, label) + (1 - supervised) \cdot unsupervised\_loss(sample)$, but unless batch size is 1, more sophisticated approaches are required.
 4. Evaluate predictions using the true label also when `supervised` was 0
 5. Exploit `symbol` for method-specific explanations (e.g., attention masks matching the hierarchy?)
 
@@ -336,7 +336,7 @@ Additionally for reproducibility, dataset specifications (files `specs.txt`) and
    1. If you want to observe tasks in order, load annotation file from `samples/curriculum/{split}_annotations.csv`
    2. Otherwise, load annotation file from `samples/shuffled_curriculum/{split}_annotations.csv`
 2. Compute "global" loss function by multiplexing a supervised loss (when `supervised == 1`) and an unsupervised loss (when `supervised == 0`).
-   A straight-forward differentiable solution could be $$supervised \cdot supervised\_loss(sample, label) + (1 - supervised) \cdot unsupervised\_loss(sample)$$, but unless batch size is 1, more sophisticated approaches are required.
+   A straight-forward differentiable solution could be $supervised \cdot supervised\_loss(sample, label) + (1 - supervised) \cdot unsupervised\_loss(sample)$, but unless batch size is 1, more sophisticated approaches are required.
 3. Apply a catastrophic forgetting mitigation strategy (you are allowed to memorize samples in a replay buffer, but not allowed to go over the stream multiple times)
 4. Evaluate predictions using the true label also when `supervised` was 0
 5. Exploit `symbol` for method-specific explanations (e.g., attention masks matching the hierarchy?)
@@ -382,7 +382,7 @@ The main goals of this benchmark under neuro-symbolic settings are:
 - Encourage investigation of the effects of label scarcity in complex domains.
 
 In general, avoid supervision at the structure level (i.e., the `symbol` annotation **CANNOT** be used as supervision on the output of the neural component) and aim for an end-to-end supervision (only `label` annotation).
-If unsupervised learning is not available, either use a $$\gamma = \beta = 1.0$$ dataset, or discard samples with `supervised == 0`.
+If unsupervised learning is not available, either use a $\gamma = \beta = 1.0$ dataset, or discard samples with `supervised == 0`.
 
 Ideally, let the framework discover compositions with its neural component (i.e., avoid manually defining a feature extractor for vertically stacked objects, one for horizontally placed, etc.), as representation learning of arbitrarily complex hierarchies is a core feature of the benchmark.
 
