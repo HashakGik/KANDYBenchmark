@@ -20,7 +20,7 @@ if __name__ == "__main__":
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
-    cg = CurriculumGenerator("config.yml", "curriculum.yml", logger=logger)
+    cg = CurriculumGenerator("config.yml", "hard.yml", logger=logger)
 
     shutil.rmtree("samples", ignore_errors=True)
     os.makedirs("samples/curriculum", exist_ok=True)
@@ -72,6 +72,11 @@ if __name__ == "__main__":
             file.write("\t\tTotal positive samples (including unsupervised): {}\n".format(pos_samples))
             file.write("\t\tTotal negative samples (including unsupervised): {}\n".format(cg.tasks[i].total_samples - pos_samples))
 
+            file.write("\t\tRejected samples:\n")
+            file.write("\t\t\tPositives: {} (rule violation), {} (already sampled)\n".format(cg.tasks[i].rejected["positive"]["rule"], cg.tasks[i].rejected["positive"]["existing"]))
+            file.write("\t\t\tNegatives: {} (rule violation), {} (already sampled)\n".format(
+                cg.tasks[i].rejected["negative"]["rule"], cg.tasks[i].rejected["negative"]["existing"]))
+
             file.write("\t\tTrain samples ({}): expected {}, actual {}\n".format(cg.tasks[i].train_split, cg.tasks[i].requested_samples["train"], cg.tasks[i].samples["train"]))
             file.write("\t\tVal samples ({}): expected {}, actual {}\n".format(cg.tasks[i].val_split,
                                                                                  cg.tasks[i].requested_samples["val"],
@@ -86,17 +91,17 @@ if __name__ == "__main__":
 
     for split in ["train", "val", "test"]:
         with open("samples/sets/{}/annotations.csv".format(split), "w", newline="\n", encoding="utf-8") as csvfile:
-            fieldnames = ["filename", "task_id", "label", "symbol"]
+            fieldnames = ["filename", "task_id", "label", "supervised", "symbol"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()
 
             for i in range(len(cg.tasks)):
                 os.mkdir("samples/sets/{}/{}".format(split, i))
                 for j, sample in enumerate(cg.get_stream(i, split)): # NOTE: get_batch() can be called an infinite number of times, since it randomly samples the split sets.
-                    sample_img, label, task_id, symbol = sample
+                    sample_img, label, supervised, task_id, symbol = sample
 
                     sample_img.save("samples/sets/{}/{}/{:04d}.png".format(split, i, j), "PNG")
-                    writer.writerow({"filename": "{}/{:04d}.png".format(i, j), "task_id": task_id, "label": label,
+                    writer.writerow({"filename": "{}/{:04d}.png".format(i, j), "task_id": task_id, "label": label, "supervised": supervised,
                                      "symbol": symbol})
 
     cg.reset()
@@ -134,6 +139,11 @@ if __name__ == "__main__":
             file.write("\t\tTotal positive samples (including unsupervised): {}\n".format(pos_samples))
             file.write("\t\tTotal negative samples (including unsupervised): {}\n".format(cg.tasks[i].total_samples - pos_samples))
 
+            file.write("\t\tRejected samples:\n")
+            file.write("\t\t\tPositives: {} (rule violation), {} (already sampled)\n".format(cg.tasks[i].rejected["positive"]["rule"], cg.tasks[i].rejected["positive"]["existing"]))
+            file.write("\t\t\tNegatives: {} (rule violation), {} (already sampled)\n".format(
+                cg.tasks[i].rejected["negative"]["rule"], cg.tasks[i].rejected["negative"]["existing"]))
+
             file.write("\t\tTrain samples ({}): expected {}, actual {}\n".format(cg.tasks[i].train_split,
                                                                                  cg.tasks[i].requested_samples["train"],
                                                                                  cg.tasks[i].samples["train"]))
@@ -149,13 +159,13 @@ if __name__ == "__main__":
 
     for split in ["train", "val", "test"]:
         with open("samples/curriculum/{}_annotations.csv".format(split), "w", newline="\n", encoding="utf-8") as csvfile:
-            fieldnames = ["filename", "task_id", "label", "symbol"]
+            fieldnames = ["filename", "task_id", "label", "supervised", "symbol"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()
             for i, sample in enumerate(cg.generate_curriculum(split, batch_size=1)): # NOTE: generate_curriculum() acts as a finite stream, but samples are still chosen randomly.
-                sample_img, label, task_id, symbol = sample
+                sample_img, label, supervised, task_id, symbol = sample
                 Image.fromarray(sample_img[0]).save("samples/curriculum/{}/{:06d}.png".format(split, i), "PNG")
-                writer.writerow({"filename": "{:06d}.png".format(i), "task_id": task_id[0], "label": label[0], "symbol": symbol[0]})
+                writer.writerow({"filename": "{:06d}.png".format(i), "task_id": task_id[0], "label": label[0], "supervised": supervised[0], "symbol": symbol[0]})
 
     cg.reset()
     with open("samples/shuffled_curriculum/specs.txt", "w", newline="\n", encoding="utf-8") as file:
@@ -192,6 +202,11 @@ if __name__ == "__main__":
             file.write("\t\tTotal negative samples (including unsupervised): {}\n".format(
                 cg.tasks[i].total_samples - pos_samples))
 
+            file.write("\t\tRejected samples:\n")
+            file.write("\t\t\tPositives: {} (rule violation), {} (already sampled)\n".format(cg.tasks[i].rejected["positive"]["rule"], cg.tasks[i].rejected["positive"]["existing"]))
+            file.write("\t\t\tNegatives: {} (rule violation), {} (already sampled)\n".format(
+                cg.tasks[i].rejected["negative"]["rule"], cg.tasks[i].rejected["negative"]["existing"]))
+
             file.write("\t\tTrain samples ({}): expected {}, actual {}\n".format(cg.tasks[i].train_split,
                                                                                  cg.tasks[i].requested_samples["train"],
                                                                                  cg.tasks[i].samples["train"]))
@@ -207,10 +222,10 @@ if __name__ == "__main__":
 
     for split in ["train", "val", "test"]:
         with open("samples/shuffled_curriculum/{}_annotations.csv".format(split), "w", newline="\n", encoding="utf-8") as csvfile:
-            fieldnames = ["filename", "task_id", "label", "symbol"]
+            fieldnames = ["filename", "task_id", "label", "supervised", "symbol"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames, quoting=csv.QUOTE_NONNUMERIC)
             writer.writeheader()
             for i, sample in enumerate(cg.generate_shuffled_curriculum(split, task_id_noise=0.3, batch_size=1)): # NOTE: generate_shuffled_curriculum() acts as a finite stream, but samples are still chosen randomly.
-                sample_img, label, task_id, symbol = sample
+                sample_img, label, supervised, task_id, symbol = sample
                 Image.fromarray(sample_img[0]).save("samples/shuffled_curriculum/{}/{:06d}.png".format(split, i), "PNG")
-                writer.writerow({"filename": "{:06d}.png".format(i), "task_id": task_id[0], "label": label[0], "symbol": symbol[0]})
+                writer.writerow({"filename": "{:06d}.png".format(i), "task_id": task_id[0], "label": label[0], "supervised": supervised[0], "symbol": symbol[0]})

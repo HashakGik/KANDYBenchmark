@@ -7,44 +7,15 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, triangle), extract_color(C1, red).
+    
   positive_set:
   - random:
     - {shape: triangle, color: red, size: ~}
   negative_set:
   - random:
     - {shape: square, color: red, size: ~}
-#-
-#  name: triangle vs square (same color)
-#  gamma: 1.0
-#  beta: 1.0
-#  samples: 100
-#  train_split: 0.5
-#  val_split: 0.25
-#  noisy_color: True
-#  noisy_size: True
-#  positive_set:
-#  - random:
-#    - intersection:
-#      - {shape: triangle, color: ~, size: ~}
-#      - store:
-#          alias: color
-#          list:
-#          - pick_before:                                  # NO! Così memorizza pick_before(...)   Bug nell'implementazione di store? (così è come se fosse store_before)
-#              n: 1
-#              list:
-#              - {shape: ~, color: red, size: ~}
-#              - {shape: ~, color: green, size: ~}
-#              - {shape: ~, color: blue, size: ~}
-#              - {shape: ~, color: cyan, size: ~}
-#              - {shape: ~, color: magenta, size: ~}
-#              - {shape: ~, color: yellow, size: ~}
-#  negative_set:
-#  - random:
-#    - intersection:
-#      - {shape: square, color: ~, size: ~}
-#      - recall:                                          # NO! recall recupera la struttura composta pick_before(...), quindi l'intersezione non può essere effettuata
-#          alias: color
-    
 -
   name: triangle vs square (any color)
   gamma: 1.0
@@ -54,6 +25,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, triangle).
+    
   positive_set:
   - random:
     - {shape: triangle, color: ~, size: ~}
@@ -70,6 +44,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, triangle).
+    
   positive_set:
   - random:
     - {shape: triangle, color: ~, size: ~}
@@ -86,6 +63,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, triangle), extract_color(C1, red).
+    
   positive_set:
   - random:
     - {shape: triangle, color: red, size: ~}
@@ -106,7 +86,11 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
-  positive_set:
+  
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, triangle), extract_color(C1, blue).
+  
+  positive_set:  
   - random:
     - {shape: triangle, color: blue, size: ~}
   negative_set:
@@ -126,6 +110,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, triangle), extract_color(C1, green).
+    
   positive_set:
   - random:
     - {shape: triangle, color: green, size: ~}
@@ -146,6 +133,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, square), extract_color(C1, red).
+    
   positive_set:
   - random:
     - {shape: square, color: ~, size: ~}
@@ -166,6 +156,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_shape(C1, circle), extract_color(C1, blue).
+    
   positive_set:
   - random:
     - {shape: circle, color: blue, size: ~}
@@ -186,6 +179,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red).
+    
   positive_set:
   - side_by_side:
     - random:
@@ -212,14 +208,17 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red).
+    
   positive_set:
   - side_by_side:
-    - {shape: triangle, color: red, size: ~}
     - random_repeat_before:
         min: 2
         max: 5
         list:
           - {shape: ~, color: ~, size: ~}
+    - {shape: triangle, color: red, size: ~}
   negative_set:
   - side_by_side:
     - pick:
@@ -242,9 +241,11 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red), contains(C1, C3), extract_shape(C3, circle).
+    
   positive_set:
   - side_by_side:
-    - {shape: triangle, color: red, size: ~}
     - permute:
       - {shape: circle, color: ~, size: ~}
       - random_repeat_before:
@@ -252,8 +253,9 @@
           max: 4
           list:
             - {shape: ~, color: ~, size: ~}
+    - {shape: triangle, color: red, size: ~}
   negative_set:
-  - side_by_side: # De Morgan: o non abbiamo un triangolo rosso
+  - side_by_side: # De Morgan: either there is no red triangle...
     - pick:
         n: 1
         list:
@@ -264,7 +266,7 @@
         max: 5
         list:
           - {shape: ~, color: ~, size: ~}
-  - side_by_side: # Oppure non abbiamo il cerchio
+  - side_by_side: # ...Nor we have a circle
     - {shape: ~, color: ~, size: ~}
     - random_repeat_before:
         min: 2
@@ -281,6 +283,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red), contains(C1, C3), extract_color(C3, blue).
+    
   positive_set:
   - side_by_side:
     - {shape: triangle, color: red, size: ~}
@@ -311,19 +316,57 @@
         list:
           - {shape: ~, color: not_blue, size: ~}
           
-#-
-#  name: triangle and square, same color  # Risolvere bug store
-#  gamma: 1.0
-#  beta: 1.0
-#  samples: 100
-#  train_split: 0.5
-#  val_split: 0.25
-#  noisy_color: True
-#  noisy_size: True
-#  positive_set:
-
- # negative_set:
- 
+-
+  name: triangle and square, same color
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
+  train_split: 0.5
+  val_split: 0.25
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), contains(C, C2), same_color(_, [C1, C2]), extract_shape(C1, triangle), extract_shape(C2, square).
+    
+  positive_set:
+    - random:
+      - store_before:
+          alias: color
+          list:
+          - pick_before:
+              n: 1
+              list:
+              - {shape: triangle, color: red, size: ~}
+              - {shape: triangle, color: green, size: ~}
+              - {shape: triangle, color: blue, size: ~}
+              - {shape: triangle, color: cyan, size: ~}
+              - {shape: triangle, color: magenta, size: ~}
+              - {shape: triangle, color: yellow, size: ~}
+      - union: # Convoluted way to extract the color from the stored triangle and transfer it to a square
+        - difference:
+          - {shape: ~, color: ~, size: ~}
+          - symmetric_difference:
+            - symmetric_difference:
+              - symmetric_difference:
+                - {shape: ~, color: ~, size: small}
+                - recall:
+                    alias: color
+              - {shape: triangle, color: ~, size: ~}
+            - {shape: square, color: ~, size: ~}
+        - difference:
+          - {shape: ~, color: ~, size: ~}
+          - symmetric_difference:
+            - symmetric_difference:
+              - symmetric_difference:
+                - {shape: ~, color: ~, size: large}
+                - recall:
+                    alias: color
+              - {shape: triangle, color: ~, size: ~}
+            - {shape: square, color: ~, size: ~}
+  negative_set:
+    - random:
+      - {shape: triangle, color: ~, size: ~}
+      - {shape: square, color: ~, size: ~}
 -
   name: palindrome aba
   gamma: 1.0
@@ -333,6 +376,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- extract_children(C, L), reverse(L, L).
+    
   positive_set:
   - side_by_side:
     - palindrome:
@@ -343,8 +389,7 @@
     - permute:
       - palindrome:
         - {shape: ~, color: ~, size: ~}
-        - {shape: ~, color: ~, size: ~}
-        
+        - {shape: ~, color: ~, size: ~}       
 -
   name: house
   gamma: 1.0
@@ -354,6 +399,9 @@
   val_split: 0.25
   noisy_color: True
   noisy_size: True
+  positive_rule: >-
+    valid(C) :- contains(C, C1), extract_op_and_chld(C1, stack, [C2, C3]), extract_shape(C2, triangle), extract_shape(C3, square).
+    
   positive_set:
   - random:
     - stack:
@@ -361,7 +409,7 @@
       - {shape: square, color: ~, size: ~}
   negative_set:
   - random:
-    - any_composition:                     # Bassa probabilità, ma non nulla, di pescare esattamente la combinazione stack(triangolo, quadrato)
+    - any_composition:
       - {shape: ~, color: ~, size: ~}
       - {shape: ~, color: ~, size: ~}
   

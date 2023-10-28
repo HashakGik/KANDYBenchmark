@@ -1,6 +1,6 @@
 seed: 12345
-canvas_size: [128, 128]
-padding: 10
+canvas_size: [384, 384]
+padding: 5
 bg_color: "#7f7f7f"
 colors: # Lists, so they can be sorted. Keys should be unique.
   - red: "#ff0000"
@@ -12,7 +12,8 @@ colors: # Lists, so they can be sorted. Keys should be unique.
 sizes:
   - small: 10
   - large: 25
-size_noise: 5
+size_noise: 3
 h_sigma: 0.01
 s_sigma: 0.2
 v_sigma: 0.2
+background_knowledge: minimal_bg.pl

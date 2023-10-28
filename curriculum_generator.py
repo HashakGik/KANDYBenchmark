@@ -2,6 +2,8 @@ import yaml
 import numpy as np
 import colorsys
 import re
+import pyswip
+import os
 
 from PIL import Image, ImageDraw
 
@@ -41,6 +43,8 @@ class Task:
 
         self.compositional_operators = set(config["compositional_operators"])
         self.list_operators = {k: [k2 for k2 in v.keys()] for k, v in config["list_operators"].items()}
+        self.pregrounding_list_operators = {k: [k2 for k2 in v.keys()] for k, v in config["pregrounding_list_operators"].items()}
+
         self.shapes = config["shapes"]
         self.sizes = config["sizes"]
         self.colors = config["colors"]
@@ -59,10 +63,42 @@ class Task:
             "negative": task_specs["negative_set"]
         }
 
+        self.aliases = {}
+
         self.patience = patience # Number of trials for rejection sampling before giving up.
+        self.rejected = {"positive": {"rule": 0, "existing": 0}, "negative": {"rule": 0, "existing": 0}}
+
+        if "positive_rule" in task_specs:
+            tmp = re.sub("[\t\n\r]+", " ", task_specs["positive_rule"])
+            tmp = re.sub(" +", " ", tmp)
+
+            self.prolog_rules = [r for r in tmp.split(".") if r != " " and r != ""]
+            self.prolog_bg_knowledge = config["background_knowledge"]
+            self.prolog_interpreter = config["interpreter"]
+            self.prolog_check = len(self.prolog_rules) > 0 and self.prolog_bg_knowledge is not None
+        else:
+            self.prolog_rules = []
+            self.prolog_bg_knowledge = None
+            self.prolog_interpreter = None
+            self.prolog_check = False
 
         self.dirty = True # Dirty bit, if False a call to self.reset() does nothing.
         self.reset()
+
+    # Loads a Swi-Prolog interpreter and executes a query. Since Swi-Prolog has a singleton database, each query requires cleaning up every predicate.
+    # Creating a new interpreter for every sample is very inefficient, but for the case of shuffled curricula, it is the only way to avoid problems.
+    def _check_rule(self, query):
+        for r in self.prolog_rules:
+            self.prolog_interpreter.assertz(r)
+        out = list(self.prolog_interpreter.query(query, maxresult=1))  # Returns an empty list for fail, otherwise a list with a dict for every solution, if no variable is grounded, the dict is empty (so [{}] is a satisfiable solution).
+
+        for r in self.prolog_rules:
+            head = r.split(":-")[0]
+            pred = head.split("(")[0].strip()
+            for arity in range(10):  # Ugly hack to abolish all possible arities...
+                next(self.prolog_interpreter.query(
+                    "abolish({}/{})".format(pred, arity)))  # We abolish the predicate to avoid conflicting with other tasks.
+        return len(out) > 0
 
     # Simple logging method.
     def _log(self, message, level="debug"):
@@ -179,21 +215,33 @@ class Task:
         return bitmap
 
     # "stack" composition function. Recursively draw each element from the symbol list in a canvas_size image.
-    def _draw_stack(self, symbol, canvas_size):
+    def _draw_stack(self, symbol, canvas_size, reduce_bounding_box=False):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0]),
-                        self.size_noise + max(*self.size_values, canvas_size[1] // len(symbol["stack"])))
+        if reduce_bounding_box:
+            child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // len(symbol["stack_reduce_bb"])),
+                            self.size_noise + max(*self.size_values, canvas_size[1] // len(symbol["stack_reduce_bb"])))
+        else:
+            child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0]),
+                            self.size_noise + max(*self.size_values, canvas_size[1] // len(symbol["stack"])))
         bitmaps = []
 
-        for s in symbol["stack"]:
-            bmp = self._draw(s, child_canvas)
-            bitmaps.append(bmp)
+        if reduce_bounding_box:
+            for s in symbol["stack_reduce_bb"]:
+                bmp = self._draw(s, child_canvas)
+                bitmaps.append(bmp)
+        else:
+            for s in symbol["stack"]:
+                bmp = self._draw(s, child_canvas)
+                bitmaps.append(bmp)
 
         step = canvas_size[1] / (len(bitmaps) + 1)
 
         for i in range(len(bitmaps)):
-            x0 = int(0)
+            if reduce_bounding_box:
+                x0 = int(canvas_size[0] / 2 - child_canvas[0] / 2)
+            else:
+                x0 = int(0)
             y0 = int((i + 1) * step - child_canvas[1] / 2)
 
             bitmap.paste(bitmaps[i], (x0, y0), mask=bitmaps[i])
@@ -201,22 +249,35 @@ class Task:
         return bitmap
 
     # "side_by_side" composition function. Recursively draw each element from the symbol list in a canvas_size image.
-    def _draw_sbs(self, symbol, canvas_size):
+    def _draw_sbs(self, symbol, canvas_size, reduce_bounding_box=False):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
 
-        child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // len(symbol["side_by_side"])),
-                        self.size_noise + max(*self.size_values, canvas_size[1]))
+        if reduce_bounding_box:
+            child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // len(symbol["side_by_side_reduce_bb"])),
+                            self.size_noise + max(*self.size_values, canvas_size[1] // len(symbol["side_by_side_reduce_bb"])))
+        else:
+            child_canvas = (self.size_noise + max(*self.size_values, canvas_size[0] // len(symbol["side_by_side"])),
+                            self.size_noise + max(*self.size_values, canvas_size[1]))
+
 
         bitmaps = []
 
-        for s in symbol["side_by_side"]:
-            bmp = self._draw(s, child_canvas)
-            bitmaps.append(bmp)
+        if reduce_bounding_box:
+            for s in symbol["side_by_side_reduce_bb"]:
+                bmp = self._draw(s, child_canvas)
+                bitmaps.append(bmp)
+        else:
+            for s in symbol["side_by_side"]:
+                bmp = self._draw(s, child_canvas)
+                bitmaps.append(bmp)
 
         step = canvas_size[0] / (len(bitmaps) + 1)
 
         for i in range(len(bitmaps)):
-            y0 = int(0)
+            if reduce_bounding_box:
+                y0 = int(canvas_size[1] / 2 - child_canvas[1] / 2)
+            else:
+                y0 = int(0)
             x0 = int((i + 1) * step - child_canvas[0] / 2)
 
             bitmap.paste(bitmaps[i], (x0, y0), mask=bitmaps[i])
@@ -263,7 +324,8 @@ class Task:
         step = 1 / (len(bitmaps) + 1)
 
         for i in range(len(bitmaps)):
-            d = (i + 1) * step
+            d = (len(bitmaps) - i) * step
+
             x0 = int(canvas_size[0] - d * canvas_size[0] - child_canvas[0] / 2)
             y0 = int(d * canvas_size[1] - child_canvas[1] / 2)
 
@@ -303,13 +365,25 @@ class Task:
 
         for s in symbol["random"]:
             bmp = self._draw(s, canvas_size)
-            m = max(self.size_values) + self.size_noise
-            x0 = self.rng.randint(m // 2, canvas_size[0] - m // 2) - canvas_size[0] // 2
-            y0 = self.rng.randint(m // 2, canvas_size[1] - m // 2) - canvas_size[1] // 2
-            x1 = x0 + canvas_size[0]
-            y1 = y0 + canvas_size[1]
+            for i in range(self.patience): # Greedy rejection sampling. Tries to fit the next element, with no backtracking.
+                m = max(self.size_values) + self.size_noise
+                x0 = self.rng.randint(m // 2 + self.padding // 2, canvas_size[0] - m // 2 - self.padding // 2) - canvas_size[0] // 2
+                y0 = self.rng.randint(m // 2 + self.padding // 2, canvas_size[1] - m // 2 - self.padding // 2) - canvas_size[1] // 2
+                x1 = x0 + canvas_size[0]
+                y1 = y0 + canvas_size[1]
 
+                tmp_bmp = Image.new('RGBA', canvas_size, (0,0,0,0))
+                tmp_bmp.paste(bmp, (x0, y0, x1, y1), mask=bmp)
+
+                global_mask = np.array(bitmap.split()[-1], dtype=bool)
+                new_mask = np.array(tmp_bmp.split()[-1], dtype=bool)
+
+                if np.sum(np.logical_and(global_mask, new_mask)) == 0:
+                    break
             bitmap.paste(bmp, (x0, y0, x1, y1), mask=bmp)
+
+        if i == self.patience:
+            self._log("Ran out of patience while positioning {} random objects. There will be overlap.".format(symbol["random"]), "warning")
 
         return bitmap
 
@@ -319,8 +393,12 @@ class Task:
             return self._draw_in(symbol, canvas_size)
         elif "stack" in symbol.keys():
             return self._draw_stack(symbol, canvas_size)
+        elif "stack_reduce_bb" in symbol.keys():
+            return self._draw_stack(symbol, canvas_size, reduce_bounding_box=True)
         elif "side_by_side" in symbol.keys():
             return self._draw_sbs(symbol, canvas_size)
+        elif "side_by_side_reduce_bb" in symbol.keys():
+            return self._draw_sbs(symbol, canvas_size, reduce_bounding_box=True)
         elif "diag_ul_lr" in symbol.keys():
             return self._draw_ullr(symbol, canvas_size)
         elif "diag_ll_ur" in symbol.keys():
@@ -344,14 +422,106 @@ class Task:
 
         return out.convert('RGB')
 
+    def _symbol_to_prolog(self, symbol):
+        if "shape" in symbol:
+            return "{}_{}_{}".format(symbol["shape"], symbol["color"], symbol["size"])
+        else:
+            op = list(symbol.keys())[0]
+            return "{}([{}])".format(op, ", ".join([self._symbol_to_prolog(x) for x in symbol[op]]))
+
     # Upper level wrapper. Samples a random symbol from a sample set (positive/negative).
     def _sample_symbol(self, sample_set):
         assert sample_set in ["positive", "negative"]
 
         self.dirty = True
-        sample = self._recursive_sampling(self.rng.choice(self.sample_sets[sample_set]))
+        sample = self._recursive_sampling(self._pre_expand_symbol(self.rng.choice(self.sample_sets[sample_set])))
 
         return sample
+
+    # Wrapper for the operator pre-expansion procedure. It descends on the structure and replaces list operators with expanded lists, flattening singleton entries.
+    # It is performed BEFORE grounding to allow variability (in contrast with _expand_symbol() which is performed afterwards).
+    def _pre_expand_symbol(self, symbol):
+        if isinstance(symbol, dict):
+            prelist_ops = list(set(symbol.keys()).intersection(set(self.pregrounding_list_operators.keys())))
+            list_ops = list(set(symbol.keys()).intersection(set(self.list_operators.keys())))
+            comp_ops = list(set(symbol.keys()).intersection(self.compositional_operators))
+
+            if len(prelist_ops) + len(list_ops) + len(comp_ops) == 0:
+                out = symbol
+            elif len(comp_ops) == 1:
+                out = {comp_ops[0]: self._pre_expand_symbol(symbol[comp_ops[0]])}
+            elif len(list_ops) == 1:
+                op = list_ops[0]
+                if len(self.list_operators[op]) == 0:
+                    out = {op: self._pre_expand_symbol(symbol[op])}
+                else:
+                    out = {op: {}}
+                    for k in self.list_operators[op]:
+                        out[op][k] = symbol[op][k]
+                    if op != "recall":
+                        out[op]["list"] = self._pre_expand_symbol(symbol[op]["list"])
+            elif len(prelist_ops) == 1:
+                op = prelist_ops[0]
+                if len(self.pregrounding_list_operators[op]) == 0:
+                    if op == "permute_before":
+                        out = self._expand_permute(self._pre_expand_symbol(symbol[op]))
+                    elif op == "palindrome_before":
+                        out = self._expand_palindrome(self._pre_expand_symbol(symbol[op]))
+                    elif op == "mirror_before":
+                        out = self._expand_mirror(self._pre_expand_symbol(symbol[op]))
+                    elif op == "random_shift_before":
+                        out = self._expand_random_shift(self._pre_expand_symbol(symbol[op]))
+                    elif op == "any_composition":
+                        new_op = self.rng.choice(list(self.compositional_operators))
+                        out = {new_op: self._pre_expand_symbol(symbol[op])}
+                    elif op == "any_displacement":
+                        new_op = self.rng.choice(list(set(self.compositional_operators) - {"random", "in"}))
+                        out = {new_op: self._pre_expand_symbol(symbol[op])}
+                    elif op == "any_line":
+                        new_op = self.rng.choice(list(set(self.compositional_operators) - {"random", "in", "grid"}))
+                        out = {new_op: self._pre_expand_symbol(symbol[op])}
+                    elif op == "any_diag":
+                        new_op = self.rng.choice(["diag_ul_lr", "diag_ll_ur"])
+                        out = {new_op: self._pre_expand_symbol(symbol[op])}
+                    elif op == "any_non_diag":
+                        new_op = self.rng.choice(["stack", "side_by_side"])
+                        out = {new_op: self._pre_expand_symbol(symbol[op])}
+                    elif op == "union":
+                        out = self._expand_union(symbol[op])
+                    elif op == "intersection":
+                        out = self._expand_intersection(symbol[op])
+                    elif op == "difference":
+                        out = self._expand_difference(symbol[op])
+                    elif op == "symmetric_difference":
+                        out = self._expand_symmetric_difference(symbol[op])
+                else:
+                    if op == "sample_before":
+                        out = self._expand_sample(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "pick_before":
+                        out = self._expand_pick(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "first_before":
+                        out = self._expand_first(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "last_before":
+                        out = self._expand_last(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "shift_before":
+                        out = self._expand_shift(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "repeat_before":
+                        out = self._expand_repeat(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["n"])
+                    elif op == "random_repeat_before":
+                        out = self._expand_random_repeat(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["min"],
+                                                         symbol[op]["max"])
+                    elif op == "store_before":
+                        out = self._expand_store(self._pre_expand_symbol(symbol[op]["list"]), symbol[op]["alias"])
+        else:
+            out = []
+            for s in symbol:
+                tmp = self._pre_expand_symbol(s)
+                if isinstance(tmp, list):
+                    out.extend(tmp)
+                else:
+                    out.append(tmp)
+
+        return out
 
     # Wrapper for the recursive sampling procedure. It descends on the structure and grounds negations (not_), disjuntions (a|b) or don't care (~) attributes.
     def _recursive_sampling(self, symbol):
@@ -393,11 +563,16 @@ class Task:
                 if len(self.list_operators[list_ops[0]]) == 0:
                     out[list_ops[0]] = self._recursive_sampling(symbol[list_ops[0]])
                 else:
-                    out[list_ops[0]] = {}
-                    for k in self.list_operators[list_ops[0]]:
-                        out[list_ops[0]][k] = symbol[list_ops[0]][k]
+                    if list_ops[0] == "recall":
+                        out = self._recursive_sampling(self._expand_recall(symbol[list_ops[0]]["alias"]))
+                    elif list_ops[0] == "store":
+                        out = self._expand_store(self._recursive_sampling(symbol[list_ops[0]]["list"]), symbol[list_ops[0]]["alias"])
+                    else:
+                        out[list_ops[0]] = {}
+                        for k in self.list_operators[list_ops[0]]:
+                            out[list_ops[0]][k] = symbol[list_ops[0]][k]
 
-                    out[list_ops[0]]["list"] = self._recursive_sampling(symbol[list_ops[0]]["list"])
+                        out[list_ops[0]]["list"] = self._recursive_sampling(symbol[list_ops[0]]["list"])
 
         else:
             out = [self._recursive_sampling(s) for s in symbol]
@@ -425,6 +600,8 @@ class Task:
                         out = self._expand_palindrome(self._expand_symbol(symbol[op]))
                     elif op == "mirror":
                         out = self._expand_mirror(self._expand_symbol(symbol[op]))
+                    elif op == "random_shift":
+                        out = self._expand_random_shift(self._expand_symbol(symbol[op]))
                 else:
                     if op == "sample":
                         out = self._expand_sample(self._expand_symbol(symbol[op]["list"]), symbol[op]["n"])
@@ -441,9 +618,15 @@ class Task:
                     elif op == "sort":
                         out = self._expand_sort(self._expand_symbol(symbol[op]["list"]), symbol[op]["order"],
                                                 symbol[op]["keys"])
+                    elif op == "argsort":
+                        out = self._expand_argsort(self._expand_symbol(symbol[op]["list"]), symbol[op]["idx"])
                     elif op == "random_repeat":
                         out = self._expand_random_repeat(self._expand_symbol(symbol[op]["list"]), symbol[op]["min"],
                                                          symbol[op]["max"])
+                    elif op == "store":
+                        out = self._expand_store(self._expand_symbol(symbol[op]["list"]), symbol[op]["alias"])
+                    elif op == "recall":
+                        out = self._expand_recall(symbol[op]["alias"])
         else:
             out = []
             for s in symbol:
@@ -485,6 +668,11 @@ class Task:
 
     # Expands a shift(n) list. It returns a barrel shift of n steps (>0 to the right, <0 to the left) of the list.
     def _expand_shift(self, l, n):
+        return l[n % len(l):] + l[:n % len(l)]
+
+    # Expands a random_shift() list. It returns a barrel shift of the list by a random amount.
+    def _expand_random_shift(self, l):
+        n = self.rng.randint(len(l))
         return l[n % len(l):] + l[:n % len(l)]
 
     # Expands a repeat(n) list. It returns n copies of the list.
@@ -554,11 +742,304 @@ class Task:
 
         return [l[i] for i in sorted_idx]
 
+    # Expands an argsort(idx) list. It returns the specified permutation of the list.
+    def _expand_argsort(self, l, idx):
+        assert isinstance(l, list)
+        assert isinstance(idx, list)
+        assert len(l) == len(idx)
+
+        return [l[i] for i in idx]
+
     # Expands a random_repeat(min, max) list. It returns a random number of copies of the list between min and max (inclusive).
     def _expand_random_repeat(self, l, min, max):
         assert min < max
         n = self.rng.randint(min, max + 1)
         return l * n
+
+    # Expands a store(alias) list. It returns the list itself, but memorizes it internally for later retrieval. It works both before and after grounding.
+    def _expand_store(self, l, alias):
+        self.aliases[alias] = l
+        return l
+
+    # Expands a recall(alias) operator (it receives no lists). It returns the retrieved structure previously stored.
+    def _expand_recall(self, alias):
+        assert alias in self.aliases, "Alias {} not stored. Make sure you call store(alias, object) or store_before(alias, object) before recall(alias). If used inside set operators, recall can only retrieve store_before aliases.".format(alias)
+        return self.aliases[alias]
+
+    # Returns the set intersection of attributes in the list of objects. The list can only contain atomic objects and this function can only be called before grounding.
+    def _expand_union(self, l):
+        out_shapes = set()
+        out_colors = set()
+        out_sizes = set()
+
+        sizes = [list(x.keys())[0] for x in self.sizes]
+        colors = [list(x.keys())[0] for x in self.colors]
+
+        for i, x in enumerate(l):
+            if "recall" in x:
+                x = self._expand_recall(x["recall"]["alias"])
+                assert isinstance(x, dict) or isinstance(x, list) and len(x) == 1, "Recalled shapes inside union() can only be atomic."
+                if isinstance(x, list):
+                    x = x[0]
+            elif "union" in x:
+                x = self._expand_union(x["union"])
+            elif "intersection" in x:
+                x = self._expand_intersection(x["intersection"])
+            elif "difference" in x:
+                x = self._expand_difference(x["difference"])
+            elif "symmetric_difference" in x:
+                x = self._expand_symmetric_difference(x["symmetric_difference"])
+
+            assert "shape" in x, "union() operator can only process atomic shapes."
+
+            if x["shape"] is None:
+                if i == 0:
+                    tmp_shape = self.shapes
+                else:
+                    tmp_shape = []
+            elif x["shape"].startswith("not_"):
+                tmp_shape = set(self.shapes) - {x["shape"][4:]}
+            else:
+                tmp_shape = x["shape"].split("|")
+
+            if x["color"] is None:
+                if i == 0:
+                    tmp_color = colors
+                else:
+                    tmp_color = []
+            elif x["color"].startswith("not_"):
+                tmp_color = set(colors) - {x["color"][4:]}
+            else:
+                tmp_color = x["color"].split("|")
+
+            if x["size"] is None:
+                if i == 0:
+                    tmp_size = sizes
+                else:
+                    tmp_size = []
+            elif x["size"].startswith("not_"):
+                tmp_size = set(sizes) - {x["size"][4:]}
+            else:
+                tmp_size = x["size"].split("|")
+
+            if i == 0:
+                out_shapes = set(tmp_shape)
+                out_colors = set(tmp_color)
+                out_sizes = set(tmp_size)
+            else:
+                out_shapes = out_shapes.union(set(tmp_shape))
+                out_colors = out_colors.union(set(tmp_color))
+                out_sizes = out_sizes.union(set(tmp_size))
+
+        assert len(out_shapes) > 0, "union() produced no valid shape."
+        assert len(out_colors) > 0, "union() produced no valid size."
+        assert len(out_sizes) > 0, "union() produced no valid size."
+
+        return {"shape": "|".join(out_shapes), "color": "|".join(out_colors), "size": "|".join(out_sizes)}
+
+    # Returns the set intersection of attributes in the list of objects. The list can only contain atomic objects and this function can only be called before grounding.
+    def _expand_intersection(self, l):
+        out_shapes = set()
+        out_colors = set()
+        out_sizes = set()
+
+        sizes = [list(x.keys())[0] for x in self.sizes]
+        colors = [list(x.keys())[0] for x in self.colors]
+
+        for i, x in enumerate(l):
+            if "recall" in x:
+                x = self._expand_recall(x["recall"]["alias"])
+                assert isinstance(x, dict) or isinstance(x, list) and len(x) == 1, "Recalled shapes inside intersection() can only be atomic."
+                if isinstance(x, list):
+                    x = x[0]
+            elif "union" in x:
+                x = self._expand_union(x["union"])
+            elif "intersection" in x:
+                x = self._expand_intersection(x["intersection"])
+            elif "difference" in x:
+                x = self._expand_difference(x["difference"])
+            elif "symmetric_difference" in x:
+                x = self._expand_symmetric_difference(x["symmetric_difference"])
+
+            assert "shape" in x, "intersection() operator can only process atomic shapes."
+
+            if x["shape"] is None:
+                tmp_shape = self.shapes
+            elif x["shape"].startswith("not_"):
+                tmp_shape = set(self.shapes) - {x["shape"][4:]}
+            else:
+                tmp_shape = x["shape"].split("|")
+
+            if x["color"] is None:
+                tmp_color = colors
+            elif x["color"].startswith("not_"):
+                tmp_color = set(colors) - {x["color"][4:]}
+            else:
+                tmp_color = x["color"].split("|")
+
+            if x["size"] is None:
+                tmp_size = sizes
+            elif x["size"].startswith("not_"):
+                tmp_size = set(sizes) - {x["size"][4:]}
+            else:
+                tmp_size = x["size"].split("|")
+
+            if i == 0:
+                out_shapes = set(tmp_shape)
+                out_colors = set(tmp_color)
+                out_sizes = set(tmp_size)
+            else:
+                out_shapes = out_shapes.intersection(set(tmp_shape))
+                out_colors = out_colors.intersection(set(tmp_color))
+                out_sizes = out_sizes.intersection(set(tmp_size))
+
+        assert len(out_shapes) > 0, "intersection() produced no valid shape."
+        assert len(out_colors) > 0, "intersection() produced no valid size."
+        assert len(out_sizes) > 0, "intersection() produced no valid size."
+
+        return {"shape": "|".join(out_shapes), "color": "|".join(out_colors), "size": "|".join(out_sizes)}
+
+    # Returns the set difference of attributes in the list of objects. The list can only contain atomic objects and this function can only be called before grounding.
+    def _expand_difference(self, l):
+        out_shapes = set()
+        out_colors = set()
+        out_sizes = set()
+
+        sizes = [list(x.keys())[0] for x in self.sizes]
+        colors = [list(x.keys())[0] for x in self.colors]
+
+        for i, x in enumerate(l):
+            if "recall" in x:
+                x = self._expand_recall(x["recall"]["alias"])
+                assert isinstance(x, dict) or isinstance(x, list) and len(x) == 1, "Recalled shapes inside difference() can only be atomic."
+                if isinstance(x, list):
+                    x = x[0]
+            elif "union" in x:
+                x = self._expand_union(x["union"])
+            elif "intersection" in x:
+                x = self._expand_intersection(x["intersection"])
+            elif "difference" in x:
+                x = self._expand_difference(x["difference"])
+            elif "symmetric_difference" in x:
+                x = self._expand_symmetric_difference(x["symmetric_difference"])
+
+            assert "shape" in x, "difference() operator can only process atomic shapes."
+
+            if x["shape"] is None:
+                if i == 0:
+                    tmp_shape = self.shapes
+                else:
+                    tmp_shape = []
+            elif x["shape"].startswith("not_"):
+                tmp_shape = set(self.shapes) - {x["shape"][4:]}
+            else:
+                tmp_shape = x["shape"].split("|")
+
+            if x["color"] is None:
+                if i == 0:
+                    tmp_color = colors
+                else:
+                    tmp_color = []
+            elif x["color"].startswith("not_"):
+                tmp_color = set(colors) - {x["color"][4:]}
+            else:
+                tmp_color = x["color"].split("|")
+
+            if x["size"] is None:
+                if i == 0:
+                    tmp_size = sizes
+                else:
+                    tmp_size = []
+            elif x["size"].startswith("not_"):
+                tmp_size = set(sizes) - {x["size"][4:]}
+            else:
+                tmp_size = x["size"].split("|")
+
+            if i == 0:
+                out_shapes = set(tmp_shape)
+                out_colors = set(tmp_color)
+                out_sizes = set(tmp_size)
+            else:
+                out_shapes = out_shapes.difference(set(tmp_shape))
+                out_colors = out_colors.difference(set(tmp_color))
+                out_sizes = out_sizes.difference(set(tmp_size))
+
+        assert len(out_shapes) > 0, "difference() produced no valid shape."
+        assert len(out_colors) > 0, "difference() produced no valid size."
+        assert len(out_sizes) > 0, "difference() produced no valid size."
+
+        return {"shape": "|".join(out_shapes), "color": "|".join(out_colors), "size": "|".join(out_sizes)}
+
+    # Returns the set symmetric difference of attributes in the list of objects. The list can only contain atomic objects and this function can only be called before grounding.
+    def _expand_symmetric_difference(self, l):
+        out_shapes = set()
+        out_colors = set()
+        out_sizes = set()
+
+        sizes = [list(x.keys())[0] for x in self.sizes]
+        colors = [list(x.keys())[0] for x in self.colors]
+
+        for i, x in enumerate(l):
+            if "recall" in x:
+                x = self._expand_recall(x["recall"]["alias"])
+                assert isinstance(x, dict) or isinstance(x, list) and len(x) == 1, "Recalled shapes inside symmetric_difference() can only be atomic."
+                if isinstance(x, list):
+                    x = x[0]
+            elif "union" in x:
+                x = self._expand_union(x["union"])
+            elif "intersection" in x:
+                x = self._expand_intersection(x["intersection"])
+            elif "difference" in x:
+                x = self._expand_difference(x["difference"])
+            elif "symmetric_difference" in x:
+                x = self._expand_symmetric_difference(x["symmetric_difference"])
+
+            assert "shape" in x, "symmetric_difference() operator can only process atomic shapes."
+
+            if x["shape"] is None:
+                if i == 0:
+                    tmp_shape = self.shapes
+                else:
+                    tmp_shape = []
+            elif x["shape"].startswith("not_"):
+                tmp_shape = set(self.shapes) - {x["shape"][4:]}
+            else:
+                tmp_shape = x["shape"].split("|")
+
+            if x["color"] is None:
+                if i == 0:
+                    tmp_color = colors
+                else:
+                    tmp_color = []
+            elif x["color"].startswith("not_"):
+                tmp_color = set(colors) - {x["color"][4:]}
+            else:
+                tmp_color = x["color"].split("|")
+
+            if x["size"] is None:
+                if i == 0:
+                    tmp_size = sizes
+                else:
+                    tmp_size = []
+            elif x["size"].startswith("not_"):
+                tmp_size = set(sizes) - {x["size"][4:]}
+            else:
+                tmp_size = x["size"].split("|")
+
+            if i == 0:
+                out_shapes = set(tmp_shape)
+                out_colors = set(tmp_color)
+                out_sizes = set(tmp_size)
+            else:
+                out_shapes = out_shapes.symmetric_difference(set(tmp_shape))
+                out_colors = out_colors.symmetric_difference(set(tmp_color))
+                out_sizes = out_sizes.symmetric_difference(set(tmp_size))
+
+        assert len(out_shapes) > 0, "symmetric_difference() produced no valid shape."
+        assert len(out_colors) > 0, "symmetric_difference() produced no valid size."
+        assert len(out_sizes) > 0, "symmetric_difference() produced no valid size."
+
+        return {"shape": "|".join(out_shapes), "color": "|".join(out_colors), "size": "|".join(out_sizes)}
 
     # Prefetches symbols for the task. It performs rejection sampling to generate self.total_samples unique samples.
     # If it fails for self.patience successive trials, it gives up and the smaller set will be sampled with repetition.
@@ -579,12 +1060,29 @@ class Task:
             label = self.rng.randint(0, 2)
             sample_set = "positive" if label == 1 else "negative"
             symbol = self._expand_symbol(self._sample_symbol(sample_set))
+
             if str(symbol) not in symbol_hash:  # Assuming no symbol is both positive and negative, otherwise the task is ill defined.
-                symbol_hash.add(str(symbol))
-                self.symbol_set.append((symbol, label))
-                i = 0
+                if self.prolog_check:
+                    query = "valid({})".format(self._symbol_to_prolog(symbol))
+
+                    symbol_hash.add(str(symbol)) # We add the symbol to the hash set also in case it violates the rule, to avoid resampling it.
+
+                    if self._check_rule(query) == bool(label):
+                        i = 0
+
+                        self.symbol_set.append((symbol, label))
+                    else:
+
+                        i += 1
+                        self._log("{} sample {} {} the rule. Rejected.".format(("Positive" if label else "Negative"), str(symbol), ("violates" if label else "satisfies")), "warning")
+                        self.rejected["positive" if label else "negative"]["rule"] += 1
+                else:
+                    symbol_hash.add(str(symbol))
+                    self.symbol_set.append((symbol, label))
+                    i = 0
             else:
                 i += 1
+                self.rejected["positive" if label else "negative"]["existing"] += 1
 
         if len(self.symbol_set) < self.total_samples:
             self._log(
@@ -636,14 +1134,8 @@ class Task:
 
         sample_img = self._draw_sample(symbol)
 
-        return sample_img, (+1 if label == 1 else -1), self.task_id, symbol
+        return sample_img, label, self.task_id, symbol
 
-    # Outputs an unsupervised sample. It simply masks the label of a supervised sample.
-    def sample_unsupervised(self, split=None):
-        self.dirty = True
-        sample_img, _, _, symbol = self.sample_supervised(split)
-
-        return sample_img, 0, self.task_id, symbol
 
     # Produces a batch of supervised samples. If there are enough unique samples, the last batch may contain fewer elements (self.total_samples % batch_size).
     def get_batch(self, batch_size, split=None):
@@ -690,14 +1182,11 @@ class Task:
             # Extract from an exponential distribution the decision of providing a supervised or unsupervised sample.
             # Each sample is guaranteed to be supervised with at least a probability of beta.
             t = i * scale
-            if self.rng.random() < self.gamma * np.exp(-self.gamma * t):
-                sample_img, label, task_id, symbol = self.sample_supervised(split)
-                self._log("SUPERVISED SAMPLE: {}".format(symbol))
-                yield sample_img, label, task_id, symbol
-            else:
-                sample_img, label, task_id, symbol = self.sample_unsupervised(split)
-                self._log("UNSUPERVISED SAMPLE: {}".format(symbol))
-                yield sample_img, label, task_id, symbol
+
+            supervised = int(self.rng.random() < self.gamma * np.exp(-self.gamma * t))
+            sample_img, label, task_id, symbol = self.sample_supervised(split)
+            self._log("{}SUPERVISED SAMPLE: {}".format(("" if supervised else "UN"), symbol))
+            yield sample_img, label, supervised, task_id, symbol
 
         self._log("END OF TASK {}".format(self.name))
 
@@ -714,6 +1203,8 @@ class Task:
 
             self.samples = {}
             self.requested_samples = {}
+            self.rejected = {"positive": {"rule": 0, "existing": 0}, "negative": {"rule": 0, "existing": 0}}
+
             self.samples["train"], self.samples["val"], self.samples["test"], self.requested_samples["train"], self.requested_samples["val"], self.requested_samples["test"] = self._prefetch_samples()
 
 
@@ -734,12 +1225,26 @@ class CurriculumGenerator:
                                          "noisy_size": bool, "positive_set": list, "negative_set": list}
         self.config["list_operators"] = {"sample": {"n": int}, "pick": {"n": int}, "first": {"n": int},
                                          "last": {"n": int},
-                                         "permute": {}, "shift": {"n": int}, "sort": {"order": str, "keys": list},
+                                         "permute": {}, "random_shift": {}, "shift": {"n": int}, "sort": {"order": str, "keys": list},
                                          "palindrome": {}, "mirror": {}, "repeat": {"n": int},
-                                         "random_repeat": {"min": int, "max": int}
+                                         "random_repeat": {"min": int, "max": int},
+                                         "argsort": {"idx": list},
+                                         "store": {"alias": str},
+                                         "recall": {"alias": str}
                                          }  # key, params
         self.config["compositional_operators"] = ["in", "random", "stack", "side_by_side", "grid", "diag_ul_lr",
-                                                  "diag_ll_ur"]
+                                                  "diag_ll_ur", "stack_reduce_bb", "side_by_side_reduce_bb"]
+
+        self.config["pregrounding_list_operators"] = {"sample_before": {"n": int}, "pick_before": {"n": int}, "first_before": {"n": int},
+                                         "last_before": {"n": int},
+                                         "permute_before": {}, "random_shift_before": {}, "shift_before": {"n": int},
+                                         "palindrome_before": {}, "mirror_before": {}, "repeat_before": {"n": int},
+                                         "random_repeat_before": {"min": int, "max": int},
+                                         "union": {}, "intersection": {}, "difference": {}, "symmetric_difference": {},
+                                                      "store_before": {"alias": str},
+                                                      "any_composition": {}, "any_displacement": {}, "any_line": {},
+                                                      "any_diag": {}, "any_non_diag": {}
+                                         }  # key, params
 
         # Configurable settings.
         with open(config, "r") as file:
@@ -823,6 +1328,10 @@ class CurriculumGenerator:
                 assert re.match("^#[0-9a-f]{6}$", v,
                                 flags=re.IGNORECASE) is not None, "{} must be an #rrggbb color, found {}.".format(k, v)
 
+        if "background_knowledge" in config:
+            assert isinstance(config["background_knowledge"], str), "Optional parameter background_knowledge should be a string, {} found.".format(type(config["background_knowledge"]))
+            assert os.path.isfile(config["background_knowledge"]), "File {} does not exist.".format(config["background_knowledge"])
+
     # Wrapper for recursive validation of a curriculum YAML file.
     def validate_curriculum(self, curriculum):
         assert isinstance(curriculum, list), "The curriculum must be a list of tasks."
@@ -885,17 +1394,19 @@ class CurriculumGenerator:
             assert ok, "Invalid size. Found {}.".format(sample_set["size"])
 
         else:  # Recursive case: list.
+            assert sample_set is not None, "Expected a list or a dict. Check your indentation."
             assert isinstance(sample_set, list), "Expected a list, found {}.".format(type(sample_set))
             for s in sample_set:
                 assert isinstance(s, dict), "Expected a dict, found {}.".format(type(sample_set))
 
                 comp_ops = list(set(s.keys()).intersection(self.config["compositional_operators"]))
                 list_ops = list(set(s.keys()).intersection(self.config["list_operators"].keys()))
+                prelist_ops = list(set(s.keys()).intersection(self.config["pregrounding_list_operators"].keys()))
                 assert len(comp_ops) + len(
                     list_ops) <= 1, "There can be at most one operator at this level. Found {}".format(
                     comp_ops.union(list_ops))
 
-                if len(comp_ops) + len(list_ops) == 0:
+                if len(comp_ops) + len(list_ops) + len(prelist_ops) == 0:
                     self._recursive_validate(s)
                 elif len(comp_ops) == 1:
                     self._recursive_validate(s[comp_ops[0]])
@@ -908,10 +1419,26 @@ class CurriculumGenerator:
                             assert k in s[op], "Missing mandatory parameter {}.".format(k)
                             assert isinstance(s[op][k], v), "Expected parameter {} of type {}. Found {}.".format(k, v, type(s[op][k]))
 
+                            if op != "recall":
+                                assert "list" in s[op], "Missing mandatory parameter 'list'."
+                                assert isinstance(s[op]["list"],
+                                                  list), "Mandatory parameter 'list' must be a list. Found {}.".format(
+                                    type(s[op]["list"]))
+                                self._recursive_validate(s[op]["list"])
+                elif len(prelist_ops) == 1:
+                    op = prelist_ops[0]
+                    if len(self.config["pregrounding_list_operators"][op]) == 0:
+                        self._recursive_validate(s[op])
+                    else:
+                        for k, v in self.config["pregrounding_list_operators"][op].items():
+                            assert s[op] is not None, "Expected a list or a dict. Check your indentation."
+                            assert k in s[op], "Missing mandatory parameter {}.".format(k)
+                            assert isinstance(s[op][k], v),\
+                                "Expected parameter {} of type {}. Found {}.".format(k, v, type(s[op][k]))
+
                             assert "list" in s[op], "Missing mandatory parameter 'list'."
-                            assert isinstance(s[op]["list"],
-                                              list), "Mandatory parameter 'list' must be a list. Found {}.".format(
-                                type(s[op]["list"]))
+                            assert isinstance(s[op]["list"], list),\
+                                "Mandatory parameter 'list' must be a list. Found {}.".format(type(s[op]["list"]))
                             self._recursive_validate(s[op]["list"])
 
     # Parse the global configuration YAML.
@@ -928,6 +1455,13 @@ class CurriculumGenerator:
         self.config["h_sigma"] = max(0.0, float(config["h_sigma"]))
         self.config["s_sigma"] = max(0.0, float(config["s_sigma"]))
         self.config["v_sigma"] = max(0.0, float(config["v_sigma"]))
+        if "background_knowledge" in config:
+            self.config["background_knowledge"] = config["background_knowledge"]
+            self.config["interpreter"] = pyswip.Prolog()
+            self.config["interpreter"].consult(self.config["background_knowledge"])
+        else:
+            self.config["background_knowledge"] = None
+            self.config["interpreter"] = None
 
     # Parse the curriculum YAML.
     def _parse_curriculum(self, curriculum):
@@ -959,17 +1493,19 @@ class CurriculumGenerator:
         i = 0
         tid_np = np.zeros(batch_size, dtype=np.uint16)
         img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
-        label_np = np.zeros(batch_size, dtype=np.int8)
+        label_np = np.zeros(batch_size, dtype=bool)
+        supervised_np = np.zeros(batch_size, dtype=bool)
         symbols_list = []
 
         while self.current_task < len(self.tasks):
             for sample in self.tasks[self.current_task].get_stream(split):
 
-                sample_img, label, tid, symbol = sample
+                sample_img, label, supervised, tid, symbol = sample
 
                 tid_np[i] = tid
                 img_np[i, :, :, :] = sample_img
                 label_np[i] = label
+                supervised_np[i] = supervised
                 symbols_list.append(symbol)
 
                 i += 1
@@ -978,12 +1514,13 @@ class CurriculumGenerator:
                     tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise,
                                       self.rng.randint(len(self.tasks), size=batch_size), tid_np)
 
-                    yield img_np, label_np, tid_np, symbols_list
+                    yield img_np, label_np, supervised_np, tid_np, symbols_list
                     i = 0
                     tid_np = np.zeros(batch_size, dtype=np.uint16)
                     img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
                                       dtype=np.uint8)
-                    label_np = np.zeros(batch_size, dtype=np.int8)
+                    label_np = np.zeros(batch_size, dtype=bool)
+                    supervised_np = np.zeros(batch_size, dtype=bool)
                     symbols_list = []
 
             self.current_task += 1
@@ -991,7 +1528,7 @@ class CurriculumGenerator:
             if i > 0:
                 tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise,
                                       self.rng.randint(len(self.tasks), size=i), tid_np[:i])
-                yield img_np[:i, :, :, :], label_np[:i], tid_np[:i], symbols_list
+                yield img_np[:i, :, :, :], label_np[:i], supervised_np[:i], tid_np[:i], symbols_list
 
     # Generator for the entire curriculum. Works like generate_curriculum, but the task from which a sample is extracted is selected randomly.
     # Since each task will be exhausted at some point, sampling is not completely i.i.d., with batches later in the curriculum being sampled from fewer and fewer tasks.
@@ -1009,18 +1546,20 @@ class CurriculumGenerator:
 
         tid_np = np.zeros(batch_size, dtype=np.uint16)
         img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3), dtype=np.uint8)
-        label_np = np.zeros(batch_size, dtype=np.int8)
+        label_np = np.zeros(batch_size, dtype=bool)
+        supervised_np = np.zeros(batch_size, dtype=bool)
         symbols_list = []
 
         while len(task_iterators) > 0:
             task = self.rng.choice(task_iterators)
 
             try:
-                sample_img, label, tid, symbol = next(task)
+                sample_img, label, supervised, tid, symbol = next(task)
 
                 tid_np[i] = tid
                 img_np[i, :, :, :] = sample_img
                 label_np[i] = label
+                supervised_np[i] = supervised
                 symbols_list.append(symbol)
 
                 i += 1
@@ -1029,12 +1568,13 @@ class CurriculumGenerator:
                     tid_np = np.where(self.rng.random(size=batch_size) < task_id_noise,
                                       self.rng.randint(len(self.tasks), size=batch_size), tid_np)
 
-                    yield img_np, label_np, tid_np, symbols_list
+                    yield img_np, label_np, supervised_np, tid_np, symbols_list
                     i = 0
                     tid_np = np.zeros(batch_size, dtype=np.uint16)
                     img_np = np.zeros((batch_size, self.config["canvas_size"][0], self.config["canvas_size"][1], 3),
                                       dtype=np.uint8)
-                    label_np = np.zeros(batch_size, dtype=np.int8)
+                    label_np = np.zeros(batch_size, dtype=bool)
+                    supervised_np = np.zeros(batch_size, dtype=bool)
                     symbols_list = []
             except StopIteration:
                 task_iterators.remove(task)
@@ -1042,7 +1582,7 @@ class CurriculumGenerator:
         if i > 0:
             tid_np[:i] = np.where(self.rng.random(size=i) < task_id_noise,
                                   self.rng.randint(len(self.tasks), size=batch_size), tid_np)
-            yield img_np[:i, :, :, :], label_np[:i], tid_np[:i], symbols_list
+            yield img_np[:i, :, :, :], label_np[:i], supervised_np[:i], tid_np[:i], symbols_list
 
     # Returns a batch for task i.
     def get_batch(self, i, batch_size, split=None):

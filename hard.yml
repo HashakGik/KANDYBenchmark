@@ -7,6 +7,9 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_operator(C, COMP), non_random(COMP).
+    
   positive_set:
   - any_displacement:
     - random_repeat_before:
@@ -30,6 +33,9 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_children(C, L), same_attribute(L).
+    
   positive_set:
   - any_displacement:
     - random_repeat_before:
@@ -70,6 +76,9 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_children(C, L), reverse(L, L).
+    
   positive_set:
   - any_line:
     - palindrome:
@@ -94,6 +103,11 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    perpendicular(C) :- extract_operator(C, stack), contains(C, C1), extract_operator(C1, side_by_side).
+    perpendicular(C) :- extract_operator(C, side_by_side), contains(C, C1), extract_operator(C1, stack).
+    valid(C) :- extract_children(C, L), length(L, N), getmiddle(L, C1), extract_children(C1, L1), length(L1, N), perpendicular(C).
+                
   positive_set:
   - side_by_side:
     - argsort:
@@ -153,6 +167,11 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    perpendicular(C) :- extract_operator(C, stack), contains(C, C1), extract_operator(C1, side_by_side).
+    perpendicular(C) :- extract_operator(C, side_by_side), contains(C, C1), extract_operator(C1, stack).
+    valid(C) :- extract_children(C, L), length(L, N), getmiddle(L, C1), extract_children(C1, L1), length(L1, N), nth0(N1, L1, X), perpendicular(C), same_color(_, L1), delete(L, C1, L2), same_shape(_, [X|L2]).
+                
   positive_set:
   - side_by_side:
     - argsort:
@@ -244,25 +263,39 @@
           - repeat_before:
               n: 4
               list:
-                - pick_before:
-                    n: 1
+                - store_before:
+                    alias: shape
                     list:
-                      - *any_tri
-                      - *any_squ
-                      - *any_cir
+                      - pick_before:
+                          n: 1
+                          list:
+                            - *any_tri
+                            - *any_squ
+                            - *any_cir
           - stack:
-            - repeat_before:
-                n: 5
+            - argsort:
+                idx: [0, 1, 4, 2, 3]
                 list:
-                  - pick_before:
-                      n: 1
+                  - repeat_before:
+                      n: 4
                       list:
-                        - *any_red
-                        - *any_grn
-                        - *any_blu
-                        - *any_cyn
-                        - *any_mag
-                        - *any_ylw
+                        - store_before:
+                            alias: color
+                            list:
+                              - pick_before:
+                                  n: 1
+                                  list:
+                                    - *any_red
+                                    - *any_grn
+                                    - *any_blu
+                                    - *any_cyn
+                                    - *any_mag
+                                    - *any_ylw
+                  - difference:
+                    - recall:
+                        alias: shape
+                    - recall:
+                        alias: color 
   - stack:
     - argsort:
         idx: [0, 1, 4, 2, 3]
@@ -270,25 +303,39 @@
           - repeat_before:
               n: 4
               list:
-                - pick_before:
-                    n: 1
+                - store_before:
+                    alias: shape
                     list:
-                      - *any_tri
-                      - *any_squ
-                      - *any_cir
+                      - pick_before:
+                          n: 1
+                          list:
+                            - *any_tri
+                            - *any_squ
+                            - *any_cir
           - side_by_side:
-            - repeat_before:
-                n: 5
+            - argsort:
+                idx: [0, 1, 4, 2, 3]
                 list:
-                  - pick_before:
-                      n: 1
+                  - repeat_before:
+                      n: 4
                       list:
-                        - *any_red
-                        - *any_grn
-                        - *any_blu
-                        - *any_cyn
-                        - *any_mag
-                        - *any_ylw
+                        - store_before:
+                            alias: color
+                            list:
+                              - pick_before:
+                                  n: 1
+                                  list:
+                                    - *any_red
+                                    - *any_grn
+                                    - *any_blu
+                                    - *any_cyn
+                                    - *any_mag
+                                    - *any_ylw
+                  - difference:
+                    - recall:
+                        alias: shape
+                    - recall:
+                        alias: color
   
 -
   name: sorted features
@@ -299,6 +346,9 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4]), extract_children(C1, L1), length(L1, 2), extract_children(C2, L2), length(L2, 3), extract_children(C3, L3), length(L3, 4), extract_children(C4, L4), length(L4, 5).
+    
   positive_set:
   - grid:
     - any_displacement:
@@ -353,6 +403,10 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4]), extract_children(C1, L1), same_non_size(L1), extract_children(C2, L2), 
+                same_non_size(L2), extract_children(C3, L3), same_non_size(L3), extract_children(C4, L4), same_non_size(L4).
+                
   positive_set:
   - grid:
     - any_displacement:
@@ -453,6 +507,10 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, grid, L), forall(member(C1, L), (extract_operator(C1, COMP), non_diag(COMP))).
+    valid(C) :- extract_op_and_chld(C, grid, L), member(C1, L), extract_op_and_chld(C1, COMP, L1), diag(COMP), all_same(_, L1).
+    
   positive_set:
   - grid:
     - pick:
@@ -558,10 +616,10 @@
   - grid:
     - permute:
       - any_diag:
-        - repeat_before:
-           n: 4
-           list:
-             - *any_obj
+          - repeat_before:
+              n: 4
+              list:
+                - *any_obj
       - pick:
           n: 1
           list:
@@ -611,6 +669,12 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    tmp_palindrome(C) :- atom(C).
+    tmp_palindrome(C) :- extract_children(C, L), reverse(L, L).
+    forall_palindrome(L) :- forall(member(C1, L), tmp_palindrome(C1)).
+    valid(C) :- extract_op_and_chld(C, COMP, L), line(COMP), reverse(L, L), forall_palindrome(L).
+    
   positive_set:
   - stack:
     - palindrome:
@@ -703,7 +767,7 @@
               - *any_obj
               - *any_obj
 -
-  name: double pseudo palindrome       # TODO GROUND DI UN ATTRIBUTO DENTRO I PALINDROMI
+  name: double pseudo palindrome
   gamma: 1.0
   beta: 1.0
   samples: 125
@@ -711,6 +775,16 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    pseudo_palindrome([]).
+    pseudo_palindrome([_]).
+    pseudo_palindrome(L) :- middle(L,M),pseudo_palindrome(M),last(L,A),first(L,B), same_shape(_, [A,B]).
+    pseudo_palindrome(L) :- middle(L,M),pseudo_palindrome(M),last(L,A),first(L,B), same_color(_, [A,B]).
+    pseudo_palindrome(L) :- middle(L,M),pseudo_palindrome(M),last(L,A),first(L,A), extract_operator(A, _).
+    perpendicular(C) :- extract_operator(C, stack), contains(C, C1), extract_operator(C1, side_by_side).
+    perpendicular(C) :- extract_operator(C, side_by_side), contains(C, C1), extract_operator(C1, stack).
+    valid(C) :- perpendicular(C), extract_children(C, L), getmiddle(L, C1), extract_children(C1, L1), pseudo_palindrome(L), pseudo_palindrome(L1).
+                
   positive_set:
   - stack:
     - palindrome_before:
@@ -777,6 +851,13 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    tmp_palindrome(C) :- atom(C).
+    tmp_palindrome(C) :- extract_children(C, L), reverse(L, L).
+    forall_palindrome(L) :- forall(member(C1, L), tmp_palindrome(C1)).
+    forall_palindrome2(L) :- forall(member(C1, L), forall_palindrome(C1)).
+    valid(C) :- extract_op_and_chld(C, COMP, L), diag(COMP), reverse(L, L), forall_palindrome(L), forall_palindrome2(L).
+    
   positive_set:
   - any_diag:
     - palindrome:
@@ -946,6 +1027,13 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    minimum_count([H|_], H, 1) :- atom(H).
+    minimum_count([C], C, N) :- extract_children(C, L), length(L, N).
+    minimum_count([H|T], H, N) :- extract_children(H, L), length(L, N), minimum_count(T, _, N1), less_eq(N, N1).
+    minimum_count([H|T], X, N1) :- extract_children(H, L), length(L, N), minimum_count(T, X, N1), greater(N, N1).
+    valid(C) :- extract_op_and_chld(C, side_by_side_reduce_bb, L), minimum_count(L, C1, _), extract_op_and_chld(C1, stack, L1), same_non_size(L1).
+    
   positive_set:
   - side_by_side_reduce_bb:
     - permute:
@@ -1003,6 +1091,11 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, side_by_side_reduce_bb, [A, triangle_red_large, B]), same_size(_, [A,B]).
+    valid(C) :- extract_op_and_chld(C, diag_ul_lr, [A, triangle_red_large, B]), extract_size(A, small), extract_size(B, large).
+    valid(C) :- extract_op_and_chld(C, diag_ll_ur, [A, triangle_red_large, B]), extract_size(A, large), extract_size(B, small).
+    
   positive_set:
   - side_by_side_reduce_bb:
     - {shape: not_triangle, color: ~, size: small}
@@ -1063,10 +1156,15 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, side_by_side_reduce_bb, [A, triangle_red_large, B]), extract_children(A, L1), extract_children(B, L2), length(L1, N), length(L2, N).
+    valid(C) :- extract_op_and_chld(C, diag_ul_lr, [A, triangle_red_large, B]), extract_children(A, L1), extract_children(B, L2), length(L1, N1), length(L2, N2), less(N1, N2).
+    valid(C) :- extract_op_and_chld(C, diag_ll_ur, [A, triangle_red_large, B]), extract_children(A, L1), extract_children(B, L2), length(L1, N1), length(L2, N2), greater(N1, N2).
+    
   positive_set:
   - side_by_side_reduce_bb:
     - stack:
-      - store: &n_objects                                       # BUG: BIAS. Store stores the entire grounded structure, store_before doesn't store the chosen number. In this way there will always be objects of the same type. Add store_length(alias, list), store_shape(alias, obj), store_color(alias, obj), store_size(alias, obj)
+      - store: &n_objects
           alias: n_objects
           list:
           - random_repeat_before:
@@ -1146,7 +1244,7 @@
           - stack:
             - permute: *more_than_n
 -
-  name: odd color even shape # BUG BUG BUG BUG BUG usare recall_override!!!!
+  name: odd color even shape
   gamma: 1.0
   beta: 1.0
   samples: 125
@@ -1154,6 +1252,10 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_children(C, L), length(L, N), odd(N), same_color(_, L).
+    valid(C) :- extract_children(C, L), length(L, N), even(N), same_shape(_, L).
+    
   positive_set:
   - any_displacement: # Odd case
     - permute:
@@ -1253,6 +1355,15 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    exists_red_square([X|_]) :- extract_shape(X, square), extract_color(X, red).
+    exists_red_square([_|T]) :- exists_red_square(T).
+    valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4]),
+                extract_op_and_chld(C1, grid, L1), exists_red_square(L1),
+                extract_op_and_chld(C2, grid, L2), exists_red_square(L2),
+                extract_op_and_chld(C3, grid, L3), exists_red_square(L3),
+                extract_op_and_chld(C4, grid, L4), exists_red_square(L4).
+                
   positive_set:
   - grid:
     - repeat_before:
@@ -1358,6 +1469,13 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4]),
+            extract_op_and_chld(C1, grid, L1), member(X, L1),
+            extract_op_and_chld(C2, grid, L2), member(X, L2),
+            extract_op_and_chld(C3, grid, L3), member(X, L3),
+            extract_op_and_chld(C4, grid, L4), member(X, L4).
+            
   positive_set:
   - grid:
     - grid:
@@ -1382,7 +1500,7 @@
                 list:
                 - {shape: ~, color: ~, size: ~}
         
-  negative_set:        # BIAS: there is a small probability of generating a "positive" sample. It becomes increasingly more likely if hard negatives are built like the previous task, so it is better to keep a "generic" negative... 
+  negative_set:
   - grid:
     - repeat_before:
         n: 4
@@ -1401,6 +1519,12 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, grid, [X1, _, _, X2,
+                                              _, X3, X4, _,
+                                              _, X5, X6, _,
+                                              X7, _, _, X8]),
+            extract_color(X1, blue), extract_shape(X1, circle), same_non_size([X1, X2, X3, X4, X5, X6, X7, X8]).
   positive_set:
   - grid:
     - argsort:
@@ -1436,6 +1560,14 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4]),
+            extract_op_and_chld(C1, diag_ul_lr, L),
+            extract_op_and_chld(C2, diag_ll_ur, L1),
+            extract_op_and_chld(C3, diag_ll_ur, L),
+            extract_op_and_chld(C4, diag_ul_lr, L1),
+            reverse(L, L1).
+            
   positive_set:
   - grid:
     - diag_ul_lr:
@@ -1494,6 +1626,18 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4, X, C5, C6, C7, C8]),
+            extract_op_and_chld(C1, diag_ul_lr, L),
+            extract_op_and_chld(C2, stack, L),
+            extract_op_and_chld(C3, diag_ll_ur, L1),
+            extract_op_and_chld(C4, side_by_side, L),
+            extract_op_and_chld(C5, side_by_side, L1),
+            extract_op_and_chld(C6, diag_ll_ur, L),
+            extract_op_and_chld(C7, stack, L1),
+            extract_op_and_chld(C8, diag_ul_lr, L1),
+            reverse(L, L1), extract_shape(X, circle), extract_size(X, large).
+            
   positive_set:
   - grid:
     - diag_ul_lr:
@@ -1587,6 +1731,24 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    valid(C) :- extract_op_and_chld(C, diag_ul_lr, [C1, C2]),
+            extract_op_and_chld(C1, grid, [_, _, _, X]),
+            extract_op_and_chld(C2, stack, L),
+            same_non_size([X|L]).
+    valid(C) :- extract_op_and_chld(C, diag_ul_lr, [C2, C1]),
+            extract_op_and_chld(C1, grid, [X, _, _, _]),
+            extract_op_and_chld(C2, stack, L),
+            same_non_size([X|L]).
+    valid(C) :- extract_op_and_chld(C, diag_ll_ur, [C1, C2]),
+            extract_op_and_chld(C1, grid, [_, X, _, _]),
+            extract_op_and_chld(C2, stack, L),
+            same_non_size([X|L]).
+    valid(C) :- extract_op_and_chld(C, diag_ll_ur, [C2, C1]),
+            extract_op_and_chld(C1, grid, [_, _, X, _]),
+            extract_op_and_chld(C2, stack, L),
+            same_non_size([X|L]).
+            
   positive_set:
   - diag_ul_lr:
     - stack:
@@ -1707,6 +1869,15 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    rotate([A, B, C, D], [C, A, D, B]).
+    valid(C) :- extract_op_and_chld(C, diag_ul_lr, [C1, C2, C3, C4]),
+            extract_op_and_chld(C1, grid, L1),
+            extract_op_and_chld(C2, grid, L2),
+            extract_op_and_chld(C3, grid, L3),
+            extract_op_and_chld(C4, grid, L4),
+            rotate(L1, L2), rotate(L2, L3), rotate(L3, L4), rotate(L4, L1).
+        
   positive_set:
   - diag_ul_lr: # To make clear separation of internal grids perceptively easier
     - grid:
@@ -1754,7 +1925,7 @@
           <<: *rotation
           idx: [2, 0, 3, 1]
 -
-  name: majority difference
+  name: majority intersection
   gamma: 1.0
   beta: 1.0
   samples: 125
@@ -1762,6 +1933,15 @@
   val_split: 0.1
   noisy_color: False
   noisy_size: False
+  positive_rule: |-
+    majority_color(CO, L) :- nth0(I, L, X1), nth0(J, L, X2), different(I, J), same_color(CO, [X1, X2]).
+    majority_shape(SH, L) :- nth0(I, L, X1), nth0(J, L, X2), different(I, J), same_shape(SH, [X1, X2]).
+
+    valid(C) :- extract_op_and_chld(C, side_by_side_reduce_bb, [C1, _, X]),
+            extract_op_and_chld(C1, stack, L1), extract_op_and_chld(C2, stack, L2), 
+            majority_color(CO, L1),
+            extract_color(X, CO1), CO = CO1, extract_shape(X, SH1), same(SH, SH1).
+            
   positive_set:
   - side_by_side_reduce_bb:
     - stack:
@@ -1797,7 +1977,7 @@
                     - *any_tri
                     - *any_squ
                     - *any_cir
-    - difference:
+    - intersection:
       - recall:
           alias: shape
       - recall:
