@@ -1072,7 +1072,6 @@ class Task:
 
                         self.symbol_set.append((symbol, label))
                     else:
-
                         i += 1
                         self._log("{} sample {} {} the rule. Rejected.".format(("Positive" if label else "Negative"), str(symbol), ("violates" if label else "satisfies")), "warning")
                         self.rejected["positive" if label else "negative"]["rule"] += 1

@@ -28,7 +28,7 @@ any_composition(random).
 
 line(X) :- non_random(X), X \= grid.
 
-shape_props(T, SH, CO, SZ) :- term_string(T, S), split_string(S, "_", "", L), L = [SH, CO, SZ].
+shape_props(T, SH, CO, SZ) :- atom(T), term_string(T, S), split_string(S, "_", "", L), L = [SH, CO, SZ].
 extract_shape(T, SH) :- shape_props(T, SH1, _, _), term_string(SH, SH1), shape(SH).
 extract_color(T, CO) :- shape_props(T, _, CO1, _), term_string(CO, CO1), color(CO).
 extract_size(T, SZ) :- shape_props(T, _, _, SZ1), term_string(SZ, SZ1), size(SZ).

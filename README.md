@@ -373,16 +373,18 @@ There can be multiple encodings, some examples include:
   % In the examples file:
   positive_example(comp_0002).
   ```
+- "cartesian" encoding: each object is encoded by its shape and its position (e.g., `is(obj0001, triangle, red, small), at_xy(obj0001, 30, 42`). We expect induction with this encoding to be extremely difficult as no compositional bias can be enforced at the representation level.
+
 ### Neuro-symbolic learning and reasoning
 How to use the benchmark under neuro-symbolic frameworks heavily depends on their constraints and capabilities.
-The main goals of this benchmark under neuro-symbolic settings are:
+The main goals of this benchmark concerning neuro-symbolic settings are:
 - Evaluate representation learning of arbitrary (recursive) structures
 - Evaluate reasoning in compositional domains
-- Encourage continual/curriculum techniques in the community for the investigation of the stability-plasticity trade-off also in symbolic settings 
+- Encourage continual/curriculum techniques in the community, for the investigation of the stability-plasticity trade-off also in reasoning settings 
 - Encourage investigation of the effects of label scarcity in complex domains.
 
-In general, avoid supervision at the structure level (i.e., the `symbol` annotation **CANNOT** be used as supervision on the output of the neural component) and aim for an end-to-end supervision (only `label` annotation).
-If unsupervised learning is not available, either use a $\gamma = \beta = 1.0$ dataset, or discard samples with `supervised == 0`.
+In general, avoid supervision at the structure level (i.e., the `symbol` annotation **CANNOT** be used as supervision on the neural component), you should aim for an end-to-end supervision (only `label` annotation during training).
+If unsupervised learning is not available for your framework, either use a $\gamma = \beta = 1.0$ dataset, or discard samples with `supervised == 0`.
 
 Ideally, let the framework discover compositions with its neural component (i.e., avoid manually defining a feature extractor for vertically stacked objects, one for horizontally placed, etc.), as representation learning of arbitrarily complex hierarchies is a core feature of the benchmark.
 

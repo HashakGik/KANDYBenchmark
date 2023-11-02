@@ -1,0 +1,478 @@
+-
+  name: exists red shape
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- recursive_contains(C, C1), extract_color(C1, red).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - pick_before:
+            n: 1
+            list:
+            - diag_ul_lr:
+              - permute:
+                - repeat_before:
+                    n: 3
+                    list:
+                    - &any_obj {shape: ~, color: ~, size: ~}
+                - &r {shape: ~, color: red, size: ~}
+            - diag_ul_lr:
+              - repeat_before:
+                  n: 4
+                  list:
+                  - *any_obj
+
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - {shape: ~, color: not_red, size: ~}
+-
+  name: exists red triangle
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- recursive_contains(C, C1), extract_color(C1, red), extract_shape(C1, triangle).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - pick_before:
+            n: 1
+            list:
+            - diag_ul_lr:
+              - permute:
+                - repeat_before:
+                    n: 3
+                    list:
+                    - *any_obj
+                - &rt {shape: triangle, color: red, size: ~}
+            - diag_ul_lr:
+              - repeat_before:
+                  n: 4
+                  list:
+                  - *any_obj
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - *any_obj
+-
+  name: exists large red triangle
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- recursive_contains(C, triangle_red_large).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - pick_before:
+            n: 1
+            list:
+            - diag_ul_lr:
+              - permute:
+                - repeat_before:
+                    n: 3
+                    list:
+                    - *any_obj
+                - &lrt {shape: triangle, color: red, size: large}
+            - diag_ul_lr:
+              - repeat_before:
+                  n: 4
+                  list:
+                  - *any_obj
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - *any_obj
+-
+  name: exists red shape or triangle
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- recursive_contains(C, C1), extract_color(C1, red).
+    valid(C) :- recursive_contains(C, C1), extract_shape(C1, triangle).
+    
+  positive_set:
+  - grid:
+    - permute:
+      - repeat_before:
+          n: 3
+          list:
+          - diag_ul_lr:
+            - repeat_before:
+                n: 4
+                list:
+                - *any_obj
+      - diag_ul_lr:
+        - permute:
+          - repeat_before:
+              n: 3
+              list:
+              - *any_obj
+          - pick_before:
+              n: 1
+              list:
+              - &t {shape: triangle, color: ~, size: ~}
+              - *r
+              
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - {shape: not_triangle, color: not_red, size: ~}
+-
+  name: for each group exists red shape
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+   valid(C) :- forall(contains(C, C1), (contains(C1, C2), extract_color(C2, red))).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 3
+                list:
+                - *any_obj
+            - *r
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - *any_obj
+-
+  name: for each group exists red triangle
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- forall(contains(C, C1), (contains(C1, C2), extract_color(C2, red), extract_shape(C2, triangle))).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 3
+                list:
+                - *any_obj
+            - *rt
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - *any_obj
+-
+  name: for each group exists red shape or triangle
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- forall(contains(C, C1), (contains(C1, C2), (extract_color(C2, red); extract_shape(C2, triangle)))).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 3
+                list:
+                - *any_obj
+            - pick_before:
+                n: 1
+                list:
+                - *t
+                - *r
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - {shape: not_triangle, color: not_red, size: ~}
+-
+  name: exist two red shapes
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- recursive_contains(C, C1), recursive_contains(C, C2), C1 \= C2, extract_color(C1, red), extract_color(C2, red).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - pick_before:
+            n: 1
+            list:
+            - diag_ul_lr:
+              - permute:
+                - repeat_before:
+                    n: 3
+                    list:
+                    - *any_obj
+                - *r
+            - diag_ul_lr:
+              - repeat_before:
+                  n: 4
+                  list:
+                  - *any_obj
+
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 3
+                list:
+                - {shape: ~, color: not_red, size: ~}
+            - *any_obj
+-
+  name: exist two red shapes, one of which is a triangle and the other of which is large
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    valid(C) :- recursive_contains(C, C1), recursive_contains(C, C2), C1 \= C2, extract_color(C1, red), extract_shape(C1, triangle), extract_color(C2, red), extract_size(C2, large).
+    
+  positive_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - pick_before:
+            n: 1
+            list:
+            - diag_ul_lr:
+              - permute:
+                - repeat_before:
+                    n: 3
+                    list:
+                    - *any_obj
+                - pick_before:
+                    n: 1
+                    list:
+                    - *rt
+                    - &rl {shape: ~, color: red, size: large}
+            - diag_ul_lr:
+              - repeat_before:
+                  n: 4
+                  list:
+                  - *any_obj
+
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - *any_obj
+-
+  name: for each group there is a shared attribute (all red, all large or all triangles)
+  gamma: 0.5
+  beta: 0.5
+  samples: 12500
+  train_split: 0.8
+  val_split: 0.1
+  noisy_color: True
+  noisy_size: True
+  positive_rule: >-
+    p(C) :- extract_color(C, red).
+    q(C) :- extract_shape(C, triangle).
+    r(C) :- extract_size(C, large).
+    valid(C) :- extract_children(C, L), forall(member(X, L), (forall(contains(X, X1), p(X1)); forall(contains(X, X1), q(X1)); forall(contains(X, X1), r(X1)))).
+    
+  positive_set:
+  - grid:
+    - pick_before:
+        n: 1
+        list:
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - *r
+        - diag_ul_lr: 
+          - repeat_before:
+              n: 4
+              list:
+              - *t
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - {shape: ~, color: ~, size: large}
+    - pick_before:
+        n: 1
+        list:
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - *r
+        - diag_ul_lr: 
+          - repeat_before:
+              n: 4
+              list:
+              - *t
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - {shape: ~, color: ~, size: large}
+    - pick_before:
+        n: 1
+        list:
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - *r
+        - diag_ul_lr: 
+          - repeat_before:
+              n: 4
+              list:
+              - *t
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - {shape: ~, color: ~, size: large}
+    - pick_before:
+        n: 1
+        list:
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - *r
+        - diag_ul_lr: 
+          - repeat_before:
+              n: 4
+              list:
+              - *t
+        - diag_ul_lr:
+          - repeat_before:
+              n: 4
+              list:
+              - {shape: ~, color: ~, size: large}
+  negative_set:
+  - grid:
+    - repeat_before:
+        n: 4
+        list:
+        - diag_ul_lr:
+          - permute:
+            - repeat_before:
+                n: 4
+                list:
+                - *any_obj              
