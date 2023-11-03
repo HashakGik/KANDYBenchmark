@@ -333,16 +333,18 @@ Additionally for reproducibility, dataset specifications (files `specs.txt`) and
 
 ### Traditional machine learning (continual learning mode)
 1.
-   1. If you want to observe tasks in order, load annotation file from `samples/curriculum/{split}_annotations.csv`
-   2. Otherwise, load annotation file from `samples/shuffled_curriculum/{split}_annotations.csv`
+   1. If you want to observe tasks in order, load annotation file from `samples/sets/{split}/annotations.csv`
+   2. Otherwise, load annotation file from `samples/shuffled_curriculum/{split}/annotations.csv`
 2. Compute "global" loss function by multiplexing a supervised loss (when `supervised == 1`) and an unsupervised loss (when `supervised == 0`).
    A straight-forward differentiable solution could be $supervised \cdot supervised\_loss(sample, label) + (1 - supervised) \cdot unsupervised\_loss(sample)$, but unless batch size is 1, more sophisticated approaches are required.
 3. Apply a catastrophic forgetting mitigation strategy (you are allowed to memorize samples in a replay buffer, but not allowed to go over the stream multiple times)
 4. Evaluate predictions using the true label also when `supervised` was 0
 5. Exploit `symbol` for method-specific explanations (e.g., attention masks matching the hierarchy?)
 
+**Note**: Samples in the shuffled curriculum folder are contained in a pseudo-task folder `0`
+
 ### Inductive reasoning
-1. Load annotation file from `samples/sets/{split}/annotations.csv`. Images are not required
+1. Load annotation file from `samples/sets/{split}/annotations.csv`. Images are not required.
 2. Write your own encoding procedure of `symbol` strings
 3. Write your own background knowledge (`minimal_bg.pl` in the main repository contains a minimal set of predicates which can be adapted to a different encoding), avoiding "cheat predicates" (i.e., **do not copy** the rules used at rejection in the `.yml` file)
 4. If your ILP framework does not support predicate invention, or if it is too expensive, feel free to add helper predicates to your background knowledge

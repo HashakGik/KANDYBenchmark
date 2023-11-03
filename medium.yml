@@ -1,8 +1,8 @@
 -
   name: exists red shape
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -44,9 +44,9 @@
                 - {shape: ~, color: not_red, size: ~}
 -
   name: exists red triangle
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -87,9 +87,9 @@
                 - *any_obj
 -
   name: exists large red triangle
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -130,9 +130,9 @@
                 - *any_obj
 -
   name: exists red shape or triangle
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -176,9 +176,9 @@
               - {shape: not_triangle, color: not_red, size: ~}
 -
   name: for each group exists red shape
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -211,9 +211,9 @@
                 - *any_obj
 -
   name: for each group exists red triangle
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -246,9 +246,9 @@
                 - *any_obj
 -
   name: for each group exists red shape or triangle
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -285,9 +285,9 @@
                 - {shape: not_triangle, color: not_red, size: ~}
 -
   name: exist two red shapes
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -330,9 +330,9 @@
             - *any_obj
 -
   name: exist two red shapes, one of which is a triangle and the other of which is large
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -378,9 +378,9 @@
                 - *any_obj
 -
   name: for each group there is a shared attribute (all red, all large or all triangles)
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 125
   train_split: 0.8
   val_split: 0.1
   noisy_color: True

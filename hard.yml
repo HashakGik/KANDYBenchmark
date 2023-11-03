@@ -1,8 +1,8 @@
 -
   name: structured vs random
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -26,9 +26,9 @@
           - *any_obj
 -
   name: shared attribute vs random
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -69,9 +69,9 @@
             
 -
   name: flat palindromes
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -96,9 +96,9 @@
               - *any_obj
 -
   name: balanced structures
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -160,9 +160,9 @@
                 - *any_obj
 -
   name: shared intersection
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -339,9 +339,9 @@
   
 -
   name: sorted features
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -396,9 +396,9 @@
               - *any_obj
 -
   name: clustered features
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -500,9 +500,9 @@
   
 -
   name: diag implication # Either a grid of four arbitrary non-diagonal sets, or a grid of one diagonal with objects with the same features and three arbitrary non-diagonals
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -662,9 +662,9 @@
                    
 -
   name: double palindrome
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -768,9 +768,9 @@
               - *any_obj
 -
   name: double pseudo palindrome
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -844,9 +844,9 @@
                     - pick_before: *fixed_random_large
 -
   name: triple palindrome
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1020,9 +1020,9 @@
                     - {shape: ~, color: ~, size: small}
 -
   name: smallest vertical line is uniform
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1084,9 +1084,9 @@
                 - {shape: ~, color: ~, size: small}
 -
   name: simple scales
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1149,9 +1149,9 @@
     
 -
   name: counting scales
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1245,9 +1245,9 @@
             - permute: *more_than_n
 -
   name: odd color even shape
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1348,9 +1348,9 @@
                   alias: color
 -
   name: red square for each quadrant
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1462,9 +1462,9 @@
                     - {shape: square, color: not_red, size: ~}
 -
   name: same shape for each quadrant
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1512,9 +1512,9 @@
               - {shape: ~, color: ~, size: ~}
 -
   name: blue circles in diagonals
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1553,9 +1553,9 @@
           - {shape: ~, color: ~, size: ~}
 -
   name: rotational symmetry 90 degrees
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1619,9 +1619,9 @@
             
 -
   name: rotational symmetry 45 degrees
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1724,9 +1724,9 @@
             alias: objects
 -
   name: pointer shares attribute
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1862,9 +1862,9 @@
               idx: [1, 0, 2, 3]
 -
   name: clockwise vs counter-clockwise
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1926,9 +1926,9 @@
           idx: [2, 0, 3, 1]
 -
   name: majority intersection
-  gamma: 1.0
-  beta: 1.0
-  samples: 125
+  gamma: 0.8
+  beta: 0.2
+  samples: 12500
   train_split: 0.8
   val_split: 0.1
   noisy_color: False

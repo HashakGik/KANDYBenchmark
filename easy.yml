@@ -180,24 +180,20 @@
   noisy_color: True
   noisy_size: True
   positive_rule: >-
-    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red).
+    valid(C) :- extract_children(C, L), last(L, C1), extract_shape(C1, triangle), extract_color(C1, red).
     
   positive_set:
   - side_by_side:
-    - random:
-      - {shape: ~, color: ~, size: ~}
-    - random:
-      - {shape: triangle, color: red, size: ~}
+    - {shape: ~, color: ~, size: ~}
+    - {shape: triangle, color: red, size: ~}
   negative_set:
   - side_by_side:
-    - random:
-      - {shape: ~, color: ~, size: ~}
-      - random:
-        - pick:
-            n: 1
-            list:
-            - {shape: not_triangle, color: ~, size: ~}
-            - {shape: triangle, color: not_red, size: ~}
+    - {shape: ~, color: ~, size: ~}
+    - pick:
+        n: 1
+        list:
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_red, size: ~}
             
 -
   name: red triangle on the right and arbitrary objects
@@ -209,7 +205,7 @@
   noisy_color: True
   noisy_size: True
   positive_rule: >-
-    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red).
+    valid(C) :- extract_children(C, L), last(L, C1), extract_shape(C1, triangle), extract_color(C1, red).
     
   positive_set:
   - side_by_side:
@@ -217,19 +213,16 @@
         min: 2
         max: 5
         list:
-          - {shape: ~, color: ~, size: ~}
+        - {shape: ~, color: ~, size: ~}
     - {shape: triangle, color: red, size: ~}
   negative_set:
   - side_by_side:
-    - pick:
-        n: 1
-        list:
-          - {shape: not_triangle, color: ~, size: ~}
-          - {shape: triangle, color: not_red, size: ~}
-    - random_repeat_before:
-        min: 2
-        max: 5
-        list:
+    - permute:
+      - {shape: triangle, color: red, size: ~}
+      - random_repeat_before:
+          min: 2
+          max: 5
+          list:
           - {shape: ~, color: ~, size: ~}
           
 -
@@ -242,7 +235,7 @@
   noisy_color: True
   noisy_size: True
   positive_rule: >-
-    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red), contains(C1, C3), extract_shape(C3, circle).
+    valid(C) :- extract_children(C, L), last(L, C1), member(C2, L), extract_shape(C1, triangle), extract_color(C1, red), extract_shape(C2, circle).
     
   positive_set:
   - side_by_side:
@@ -252,27 +245,31 @@
           min: 1
           max: 4
           list:
-            - {shape: ~, color: ~, size: ~}
+          - {shape: ~, color: ~, size: ~}
     - {shape: triangle, color: red, size: ~}
   negative_set:
   - side_by_side: # De Morgan: either there is no red triangle...
     - pick:
         n: 1
         list:
-          - {shape: not_triangle, color: ~, size: ~}
-          - {shape: triangle, color: not_red, size: ~}
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_red, size: ~}
     - random_repeat_before:
         min: 2
         max: 5
         list:
-          - {shape: ~, color: ~, size: ~}
+        - {shape: ~, color: ~, size: ~}
   - side_by_side: # ...Nor we have a circle
-    - {shape: ~, color: ~, size: ~}
     - random_repeat_before:
         min: 2
         max: 5
         list:
-          - {shape: not_circle, color: ~, size: ~}
+        - {shape: not_circle, color: ~, size: ~}
+    - pick:
+        n: 1
+        list:
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_red, size: ~}
           
 -
   name: red triangle on the right and at least one blue object and arbitrary objects
@@ -284,11 +281,10 @@
   noisy_color: True
   noisy_size: True
   positive_rule: >-
-    valid(C) :- extract_children(C, L), nth0(1, L, C1), contains(C1, C2), extract_shape(C2, triangle), extract_color(C2, red), contains(C1, C3), extract_color(C3, blue).
+    valid(C) :- extract_children(C, L), last(L, C1), member(C2, L), extract_shape(C1, triangle), extract_color(C1, red), extract_color(C2, blue).
     
   positive_set:
   - side_by_side:
-    - {shape: triangle, color: red, size: ~}
     - permute:
       - {shape: ~, color: blue, size: ~}
       - random_repeat_before:
@@ -296,25 +292,30 @@
           max: 4
           list:
             - {shape: ~, color: ~, size: ~}
+    - {shape: triangle, color: red, size: ~}
   negative_set:
   - side_by_side:
     - pick:
         n: 1
         list:
-          - {shape: not_triangle, color: ~, size: ~}
-          - {shape: triangle, color: not_red, size: ~}
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_red, size: ~}
     - random_repeat_before:
         min: 2
         max: 5
         list:
-          - {shape: ~, color: ~, size: ~}
+        - {shape: ~, color: not_blue, size: ~}
   - side_by_side:
-    - {shape: ~, color: ~, size: ~}
     - random_repeat_before:
         min: 2
         max: 5
         list:
-          - {shape: ~, color: not_blue, size: ~}
+        - {shape: ~, color: not_blue, size: ~}
+    - pick:
+        n: 1
+        list:
+        - {shape: not_triangle, color: ~, size: ~}
+        - {shape: triangle, color: not_red, size: ~}
           
 -
   name: triangle and square, same color
@@ -409,7 +410,7 @@
       - {shape: square, color: ~, size: ~}
   negative_set:
   - random:
-    - any_composition:
+    - any_displacement:
       - {shape: ~, color: ~, size: ~}
       - {shape: ~, color: ~, size: ~}
   
