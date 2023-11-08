@@ -21,6 +21,10 @@ Optionally, noise can be injected in task identifiers to verify whether the lear
 
 Each task image contains base concepts (triangles, squares and circles, in 6 different colors and 2 different sizes), which can be composed spatially by these recursive operators:
 - `in`: subconcepts are drawn one inside the other
+- `quadrant_ul`: subconcepts are drawn one inside the other in the upper left quadrant
+- `quadrant_ur`: subconcepts are drawn one inside the other in the upper right quadrant
+- `quadrant_ll`: subconcepts are drawn one inside the other in the lower left quadrant
+- `quadrant_lr`: subconcepts are drawn one inside the other in the lower right quadrant
 - `random`: subconcepts are drawn at random positions
 - `stack`: subconcepts are drawn top-to-bottom, the horizontal dimension of the bounding box is the same as the parent
 - `stack_reduce_bb`: subconcepts are drawn top-to-bottom, the horizontal dimension of the bounding box is reduced to match the vertical one
@@ -58,10 +62,12 @@ A positive/negative set is a list of top level objects. As syntactic sugar, to s
 - `sort(order, keys, L)`: sort list L in `asc`ending/`desc`ending order, according to keys
 - `argsort(idx, L)`: manually sorts L according to indices (in 0..len(L) - 1)
 - `store(alias, obj)`: memorizes obj (any between a list, an atomic or compound object) for later retrieval
-- `recall(alias)`: it is replaced by the previously memorized object associated with that alia
+- `recall(alias)`: it is replaced by the previously memorized object associated with that alias
 - `any_composition(L)`: it is replaced by a random compositional operator
 - `any_displacement(L)`: it is replaced by a random non-overlapping compositional operator (`stack, side_by_side, diag_ul_lr, diag_ll_ur, grid`)
 - `any_line(L)`: it is replaced by a random line compositional operator (`stack, side_by_side, diag_ul_lr, diag_ll_ur`)
+- `any_quadrant(L)`: it is replaced by a random quadrant compositional operator (`quadrant_ul, quadrant_ur, quadrant_ll, quadrant_lr`)
+- `quadrant_or_center(L)`: it is replaced by a random in-like compositional operator (`in, quadrant_ul, quadrant_ur, quadrant_ll, quadrant_lr`)
 
 Sorting keys are:
 - `n`: element cardinality (1 for atomic elements, len(L) for compound elements)

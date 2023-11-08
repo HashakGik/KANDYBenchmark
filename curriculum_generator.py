@@ -214,6 +214,54 @@ class Task:
 
         return bitmap
 
+    # "quadrant_ul" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_quadrant_ul(self, symbol, canvas_size):
+        bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+
+        for s in symbol["quadrant_ul"]:
+            bmp = self._draw(s, (canvas_size[0] // 2, canvas_size[1] // 2))
+            x0 = 0
+            y0 = 0
+            bitmap.paste(bmp, (x0, y0), mask=bmp)
+
+        return bitmap
+
+    # "quadrant_ul" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_quadrant_ur(self, symbol, canvas_size):
+        bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+
+        for s in symbol["quadrant_ur"]:
+            bmp = self._draw(s, (canvas_size[0] // 2, canvas_size[1] // 2))
+            x0 = int(canvas_size[0] / 2)
+            y0 = 0
+            bitmap.paste(bmp, (x0, y0), mask=bmp)
+
+        return bitmap
+
+    # "quadrant_ul" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_quadrant_ll(self, symbol, canvas_size):
+        bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+
+        for s in symbol["quadrant_ll"]:
+            bmp = self._draw(s, (canvas_size[0] // 2, canvas_size[1] // 2))
+            x0 = int(canvas_size[0] / 2)
+            y0 = 0
+            bitmap.paste(bmp, (x0, y0), mask=bmp)
+
+        return bitmap
+
+    # "quadrant_ul" composition function. Recursively draw each element from the symbol list in a canvas_size image.
+    def _draw_quadrant_lr(self, symbol, canvas_size):
+        bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+
+        for s in symbol["quadrant_lr"]:
+            bmp = self._draw(s, (canvas_size[0] // 2, canvas_size[1] // 2))
+            x0 = int(canvas_size[0] / 2)
+            y0 = int(canvas_size[1] / 2)
+            bitmap.paste(bmp, (x0, y0), mask=bmp)
+
+        return bitmap
+
     # "stack" composition function. Recursively draw each element from the symbol list in a canvas_size image.
     def _draw_stack(self, symbol, canvas_size, reduce_bounding_box=False):
         bitmap = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
@@ -403,6 +451,14 @@ class Task:
             return self._draw_ullr(symbol, canvas_size)
         elif "diag_ll_ur" in symbol.keys():
             return self._draw_llur(symbol, canvas_size)
+        elif "quadrant_ul" in symbol.keys():
+            return self._draw_quadrant_ul(symbol, canvas_size)
+        elif "quadrant_ur" in symbol.keys():
+            return self._draw_quadrant_ur(symbol, canvas_size)
+        elif "quadrant_ll" in symbol.keys():
+            return self._draw_quadrant_ll(symbol, canvas_size)
+        elif "quadrant_lr" in symbol.keys():
+            return self._draw_quadrant_lr(symbol, canvas_size)
         elif "grid" in symbol.keys():
             return self._draw_grid(symbol, canvas_size)
         elif "random" in symbol.keys():
@@ -475,16 +531,22 @@ class Task:
                         new_op = self.rng.choice(list(self.compositional_operators))
                         out = {new_op: self._pre_expand_symbol(symbol[op])}
                     elif op == "any_displacement":
-                        new_op = self.rng.choice(list(set(self.compositional_operators) - {"random", "in"}))
+                        new_op = self.rng.choice(list(set(self.compositional_operators) - {"random", "in", "quadrant_ul", "quadrant_ur", "quadrant_ll", "quadrant_lr"}))
                         out = {new_op: self._pre_expand_symbol(symbol[op])}
                     elif op == "any_line":
-                        new_op = self.rng.choice(list(set(self.compositional_operators) - {"random", "in", "grid"}))
+                        new_op = self.rng.choice(list(set(self.compositional_operators) - {"random", "in", "grid", "quadrant_ul", "quadrant_ur", "quadrant_ll", "quadrant_lr"}))
                         out = {new_op: self._pre_expand_symbol(symbol[op])}
                     elif op == "any_diag":
                         new_op = self.rng.choice(["diag_ul_lr", "diag_ll_ur"])
                         out = {new_op: self._pre_expand_symbol(symbol[op])}
                     elif op == "any_non_diag":
                         new_op = self.rng.choice(["stack", "side_by_side"])
+                        out = {new_op: self._pre_expand_symbol(symbol[op])}
+                    elif op == "any_quadrant":
+                        new_op = self.rng.choice(["quadrant_ul", "quadrant_ur", "quadrant_ll", "quadrant_lr"])
+                        out = {new_op: self._pre_expand_symbol(symbol[op])}
+                    elif op == "quadrant_or_center":
+                        new_op = self.rng.choice(["quadrant_ul", "quadrant_ur", "quadrant_ll", "quadrant_lr", "in"])
                         out = {new_op: self._pre_expand_symbol(symbol[op])}
                     elif op == "union":
                         out = self._expand_union(symbol[op])
@@ -1232,7 +1294,7 @@ class CurriculumGenerator:
                                          "recall": {"alias": str}
                                          }  # key, params
         self.config["compositional_operators"] = ["in", "random", "stack", "side_by_side", "grid", "diag_ul_lr",
-                                                  "diag_ll_ur", "stack_reduce_bb", "side_by_side_reduce_bb"]
+                                                  "diag_ll_ur", "stack_reduce_bb", "side_by_side_reduce_bb", "quadrant_ul", "quadrant_ur", "quadrant_ll", "quadrant_lr"]
 
         self.config["pregrounding_list_operators"] = {"sample_before": {"n": int}, "pick_before": {"n": int}, "first_before": {"n": int},
                                          "last_before": {"n": int},
@@ -1242,7 +1304,7 @@ class CurriculumGenerator:
                                          "union": {}, "intersection": {}, "difference": {}, "symmetric_difference": {},
                                                       "store_before": {"alias": str},
                                                       "any_composition": {}, "any_displacement": {}, "any_line": {},
-                                                      "any_diag": {}, "any_non_diag": {}
+                                                      "any_diag": {}, "any_non_diag": {}, "any_quadrant": {}, "quadrant_or_center": {}
                                          }  # key, params
 
         # Configurable settings.

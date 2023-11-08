@@ -21,12 +21,28 @@ non_diag(grid).
 diag(diag_ul_lr).
 diag(diag_ll_ur).
 
+quadrant_ul(quadrant_ul).
+quadrant_ur(quadrant_ur).
+quadrant_ll(quadrant_ll).
+quadrant_lr(quadrant_lr).
+
+quadrant(quadrant_ul).
+quadrant(quadrant_ur).
+quadrant(quadrant_ll).
+quadrant(quadrant_lr).
+
+quadrant_or_center(in).
+quadrant_or_center(X) :- quadrant(X).
+
 non_random(X) :- diag(X).
 non_random(X) :- non_diag(X).
+non_random(X) :- quadrant(X).
 any_composition(X) :- non_random(X).
 any_composition(random).
 
-line(X) :- non_random(X), X \= grid.
+
+line(X) :- non_diag(X), X \= grid.
+line(X) :- diag(X).
 
 shape_props(T, SH, CO, SZ) :- atom(T), term_string(T, S), split_string(S, "_", "", L), L = [SH, CO, SZ].
 extract_shape(T, SH) :- shape_props(T, SH1, _, _), term_string(SH, SH1), shape(SH).
