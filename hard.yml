@@ -1,15 +1,15 @@
 -
   name: structured vs random
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
   noisy_size: False
   positive_rule: |-
     valid(C) :- extract_operator(C, COMP), non_random(COMP).
-    
+
   positive_set:
   - any_displacement:
     - random_repeat_before:
@@ -26,16 +26,16 @@
           - *any_obj
 -
   name: shared attribute vs random
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
   noisy_size: False
   positive_rule: |-
     valid(C) :- extract_children(C, L), same_attribute(L).
-    
+
   positive_set:
   - any_displacement:
     - random_repeat_before:
@@ -56,8 +56,8 @@
                 - &any_cyn {shape: ~, color: cyan, size: ~}
                 - &any_mag {shape: ~, color: magenta, size: ~}
                 - &any_ylw {shape: ~, color: yellow, size: ~}
-              
-  
+
+
   negative_set:
   - any_displacement:
     - random_repeat_before:
@@ -65,20 +65,20 @@
         max: 5
         list:
           - *any_obj
-            
-            
+
+
 -
   name: flat palindromes
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
   noisy_size: False
   positive_rule: |-
     valid(C) :- extract_children(C, L), reverse(L, L).
-    
+
   positive_set:
   - any_line:
     - palindrome:
@@ -96,9 +96,9 @@
               - *any_obj
 -
   name: balanced structures
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -107,7 +107,7 @@
     perpendicular(C) :- extract_operator(C, stack), contains(C, C1), extract_operator(C1, side_by_side).
     perpendicular(C) :- extract_operator(C, side_by_side), contains(C, C1), extract_operator(C1, stack).
     valid(C) :- extract_children(C, L), length(L, N), getmiddle(L, C1), extract_children(C1, L1), length(L1, N), perpendicular(C).
-                
+
   positive_set:
   - side_by_side:
     - argsort:
@@ -160,9 +160,9 @@
                 - *any_obj
 -
   name: shared intersection
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -171,7 +171,7 @@
     perpendicular(C) :- extract_operator(C, stack), contains(C, C1), extract_operator(C1, side_by_side).
     perpendicular(C) :- extract_operator(C, side_by_side), contains(C, C1), extract_operator(C1, stack).
     valid(C) :- extract_children(C, L), length(L, N), getmiddle(L, C1), extract_children(C1, L1), length(L1, N), nth0(N1, L1, X), perpendicular(C), same_color(_, L1), delete(L, C1, L2), same_shape(_, [X|L2]).
-                
+
   positive_set:
   - side_by_side:
     - argsort:
@@ -252,9 +252,9 @@
                       - recall:
                           alias: attr_1
                       - recall:
-                          alias: attr_2     
+                          alias: attr_2
 
-  
+
   negative_set:
   - side_by_side:
     - argsort:
@@ -295,7 +295,7 @@
                     - recall:
                         alias: shape
                     - recall:
-                        alias: color 
+                        alias: color
   - stack:
     - argsort:
         idx: [0, 1, 4, 2, 3]
@@ -336,19 +336,19 @@
                         alias: shape
                     - recall:
                         alias: color
-  
+
 -
   name: sorted features
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
   noisy_size: False
   positive_rule: |-
     valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4]), extract_children(C1, L1), length(L1, 2), extract_children(C2, L2), length(L2, 3), extract_children(C3, L3), length(L3, 4), extract_children(C4, L4), length(L4, 5).
-    
+
   positive_set:
   - grid:
     - any_displacement:
@@ -396,9 +396,9 @@
               - *any_obj
 -
   name: clustered features
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -406,7 +406,7 @@
   positive_rule: |-
     valid(C) :- extract_op_and_chld(C, grid, [C1, C2, C3, C4]), extract_children(C1, L1), same_non_size(L1), extract_children(C2, L2), 
                 same_non_size(L2), extract_children(C3, L3), same_non_size(L3), extract_children(C4, L4), same_non_size(L4).
-                
+
   positive_set:
   - grid:
     - any_displacement:
@@ -444,7 +444,7 @@
           max: 3
           list:
           - pick_before: *fixed_random_large
-  
+
   negative_set:
   - grid:
     - any_displacement:
@@ -497,12 +497,12 @@
             max: 3
             list:
             - pick_before: *fixed_random_large
-  
+
 -
   name: diag implication # Either a grid of four arbitrary non-diagonal sets, or a grid of one diagonal with objects with the same features and three arbitrary non-diagonals
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -510,7 +510,7 @@
   positive_rule: |-
     valid(C) :- extract_op_and_chld(C, grid, L), forall(member(C1, L), (extract_operator(C1, COMP), non_diag(COMP))).
     valid(C) :- extract_op_and_chld(C, grid, L), member(C1, L), extract_op_and_chld(C1, COMP, L1), diag(COMP), all_same(_, L1).
-    
+
   positive_set:
   - grid:
     - pick:
@@ -611,7 +611,7 @@
                   n: 4
                   list:
                     - *any_obj
-           
+
   negative_set:
   - grid:
     - permute:
@@ -659,12 +659,12 @@
                  n: 4
                  list:
                    - *any_obj
-                   
+
 -
   name: double palindrome
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -674,7 +674,7 @@
     tmp_palindrome(C) :- extract_children(C, L), reverse(L, L).
     forall_palindrome(L) :- forall(member(C1, L), tmp_palindrome(C1)).
     valid(C) :- extract_op_and_chld(C, COMP, L), line(COMP), reverse(L, L), forall_palindrome(L).
-    
+
   positive_set:
   - stack:
     - palindrome:
@@ -696,7 +696,7 @@
             - *any_obj
             - *any_obj
             - *any_obj
-      
+
   negative_set:
   - stack:
     - permute:
@@ -768,9 +768,9 @@
               - *any_obj
 -
   name: double pseudo palindrome
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -784,7 +784,7 @@
     perpendicular(C) :- extract_operator(C, stack), contains(C, C1), extract_operator(C1, side_by_side).
     perpendicular(C) :- extract_operator(C, side_by_side), contains(C, C1), extract_operator(C1, stack).
     valid(C) :- perpendicular(C), extract_children(C, L), getmiddle(L, C1), extract_children(C1, L1), pseudo_palindrome(L), pseudo_palindrome(L1).
-                
+
   positive_set:
   - stack:
     - palindrome_before:
@@ -804,7 +804,7 @@
           - pick_before: *fixed_random_large
           - pick_before: *fixed_random_large
           - pick_before: *fixed_random_large
-      
+
   negative_set:
   - stack:
     - argsort:
@@ -844,9 +844,9 @@
                     - pick_before: *fixed_random_large
 -
   name: triple palindrome
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -857,7 +857,7 @@
     forall_palindrome(L) :- forall(member(C1, L), tmp_palindrome(C1)).
     forall_palindrome2(L) :- forall(member(C1, L), forall_palindrome(C1)).
     valid(C) :- extract_op_and_chld(C, COMP, L), diag(COMP), reverse(L, L), forall_palindrome(L), forall_palindrome2(L).
-    
+
   positive_set:
   - any_diag:
     - palindrome:
@@ -879,7 +879,7 @@
               - {shape: ~, color: ~, size: small}
               - {shape: ~, color: ~, size: small}
               - {shape: ~, color: ~, size: small}
-  
+
   negative_set: # At least one of the three levels is not a palindrome
   - any_diag:
     - permute:
@@ -1020,9 +1020,9 @@
                     - {shape: ~, color: ~, size: small}
 -
   name: smallest vertical line is uniform
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1033,7 +1033,7 @@
     minimum_count([H|T], H, N) :- extract_children(H, L), length(L, N), minimum_count(T, _, N1), less_eq(N, N1).
     minimum_count([H|T], X, N1) :- extract_children(H, L), length(L, N), minimum_count(T, X, N1), greater(N, N1).
     valid(C) :- extract_op_and_chld(C, side_by_side_reduce_bb, L), minimum_count(L, C1, _), extract_op_and_chld(C1, stack, L1), same_non_size(L1).
-    
+
   positive_set:
   - side_by_side_reduce_bb:
     - permute:
@@ -1063,7 +1063,7 @@
                 max: 5
                 list:
                 - {shape: ~, color: ~, size: small}
-  
+
   negative_set:
   - side_by_side_reduce_bb:
     - permute:
@@ -1084,9 +1084,9 @@
                 - {shape: ~, color: ~, size: small}
 -
   name: simple scales
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1095,7 +1095,7 @@
     valid(C) :- extract_op_and_chld(C, side_by_side_reduce_bb, [A, triangle_red_large, B]), same_size(_, [A,B]).
     valid(C) :- extract_op_and_chld(C, diag_ul_lr, [A, triangle_red_large, B]), extract_size(A, small), extract_size(B, large).
     valid(C) :- extract_op_and_chld(C, diag_ll_ur, [A, triangle_red_large, B]), extract_size(A, large), extract_size(B, small).
-    
+
   positive_set:
   - side_by_side_reduce_bb:
     - {shape: not_triangle, color: ~, size: small}
@@ -1146,12 +1146,12 @@
     - {shape: not_triangle, color: ~, size: small}
     - {shape: triangle, color: red, size: large}
     - {shape: not_triangle, color: ~, size: large}
-    
+
 -
   name: counting scales
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1160,7 +1160,7 @@
     valid(C) :- extract_op_and_chld(C, side_by_side_reduce_bb, [A, triangle_red_large, B]), extract_children(A, L1), extract_children(B, L2), length(L1, N), length(L2, N).
     valid(C) :- extract_op_and_chld(C, diag_ul_lr, [A, triangle_red_large, B]), extract_children(A, L1), extract_children(B, L2), length(L1, N1), length(L2, N2), less(N1, N2).
     valid(C) :- extract_op_and_chld(C, diag_ll_ur, [A, triangle_red_large, B]), extract_children(A, L1), extract_children(B, L2), length(L1, N1), length(L2, N2), greater(N1, N2).
-    
+
   positive_set:
   - side_by_side_reduce_bb:
     - stack:
@@ -1245,9 +1245,9 @@
             - permute: *more_than_n
 -
   name: odd color even shape
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1255,7 +1255,7 @@
   positive_rule: |-
     valid(C) :- extract_children(C, L), length(L, N), odd(N), same_color(_, L).
     valid(C) :- extract_children(C, L), length(L, N), even(N), same_shape(_, L).
-    
+
   positive_set:
   - any_displacement: # Odd case
     - permute:
@@ -1294,14 +1294,14 @@
                   - *any_tri
                   - *any_squ
                   - *any_cir
-            
+
           - random_repeat_before:
               min: 0
               max: 2
               list:
               - recall:
                   alias: shape
-        
+
   negative_set:
   - any_displacement: # Odd case
     - permute:
@@ -1348,9 +1348,9 @@
                   alias: color
 -
   name: red square for each quadrant
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1363,7 +1363,7 @@
                 extract_op_and_chld(C2, grid, L2), exists_red_square(L2),
                 extract_op_and_chld(C3, grid, L3), exists_red_square(L3),
                 extract_op_and_chld(C4, grid, L4), exists_red_square(L4).
-                
+
   positive_set:
   - grid:
     - repeat_before:
@@ -1376,7 +1376,7 @@
                 n: 3
                 list:
                 - {shape: ~, color: ~, size: ~}
-        
+
   negative_set:
   - grid:
     - repeat_before:
@@ -1462,9 +1462,9 @@
                     - {shape: square, color: not_red, size: ~}
 -
   name: same shape for each quadrant
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1475,7 +1475,7 @@
             extract_op_and_chld(C2, grid, L2), member(X, L2),
             extract_op_and_chld(C3, grid, L3), member(X, L3),
             extract_op_and_chld(C4, grid, L4), member(X, L4).
-            
+
   positive_set:
   - grid:
     - grid:
@@ -1499,7 +1499,7 @@
                 n: 3
                 list:
                 - {shape: ~, color: ~, size: ~}
-        
+
   negative_set:
   - grid:
     - repeat_before:
@@ -1512,9 +1512,9 @@
               - {shape: ~, color: ~, size: ~}
 -
   name: blue circles in diagonals
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1538,8 +1538,8 @@
             n: 8
             list:
             - {shape: ~, color: ~, size: ~}
-    
-        
+
+
   negative_set:
   - grid:
     - permute:
@@ -1553,9 +1553,9 @@
           - {shape: ~, color: ~, size: ~}
 -
   name: rotational symmetry 90 degrees
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1567,7 +1567,7 @@
             extract_op_and_chld(C3, diag_ll_ur, L),
             extract_op_and_chld(C4, diag_ul_lr, L1),
             reverse(L, L1).
-            
+
   positive_set:
   - grid:
     - diag_ul_lr:
@@ -1593,7 +1593,7 @@
           list:
           - recall:
               alias: objects
-        
+
   negative_set:
   - grid:
     - diag_ul_lr:
@@ -1616,12 +1616,12 @@
       - permute:
         - recall:
             alias: objects
-            
+
 -
   name: rotational symmetry 45 degrees
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1637,7 +1637,7 @@
             extract_op_and_chld(C7, stack, L1),
             extract_op_and_chld(C8, diag_ul_lr, L1),
             reverse(L, L1), extract_shape(X, circle), extract_size(X, large).
-            
+
   positive_set:
   - grid:
     - diag_ul_lr:
@@ -1682,7 +1682,7 @@
           list:
           - recall:
               alias: objects
-        
+
   negative_set:
   - grid:
     - diag_ul_lr:
@@ -1724,9 +1724,9 @@
             alias: objects
 -
   name: pointer shares attribute
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1748,7 +1748,7 @@
             extract_op_and_chld(C1, grid, [_, _, X, _]),
             extract_op_and_chld(C2, stack, L),
             same_non_size([X|L]).
-            
+
   positive_set:
   - diag_ul_lr:
     - stack:
@@ -1781,7 +1781,7 @@
               list:
               - {shape: ~, color: ~, size: ~}
   - diag_ul_lr:
-    - argsort: 
+    - argsort:
         idx: [1, 0]
         list:
           - stack:
@@ -1791,7 +1791,7 @@
                 <<: *target
                 idx: [1, 2, 3, 0]
   - diag_ll_ur:
-    - argsort: 
+    - argsort:
         idx: [0, 1]
         list:
           - stack:
@@ -1801,7 +1801,7 @@
                 <<: *target
                 idx: [1, 2, 0, 3]
   - diag_ll_ur:
-    - argsort: 
+    - argsort:
         idx: [1, 0]
         list:
           - stack:
@@ -1810,7 +1810,7 @@
             - argsort:
                 <<: *target
                 idx: [1, 0, 2, 3]
-        
+
   negative_set:
   - diag_ul_lr:
     - argsort:
@@ -1862,9 +1862,9 @@
               idx: [1, 0, 2, 3]
 -
   name: clockwise vs counter-clockwise
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False
@@ -1877,7 +1877,7 @@
             extract_op_and_chld(C3, grid, L3),
             extract_op_and_chld(C4, grid, L4),
             rotate(L1, L2), rotate(L2, L3), rotate(L3, L4), rotate(L4, L1).
-        
+
   positive_set:
   - diag_ul_lr: # To make clear separation of internal grids perceptively easier
     - grid:
@@ -1895,13 +1895,13 @@
           - recall:
               alias: objects
     - grid:
-      - argsort: 
+      - argsort:
           <<: *rotation
-          idx: [3, 2, 1, 0]  
+          idx: [3, 2, 1, 0]
     - grid:
-      - argsort: 
+      - argsort:
           <<: *rotation
-          idx: [1, 3, 0, 2]         
+          idx: [1, 3, 0, 2]
   negative_set:
   - diag_ul_lr:
     - grid:
@@ -1913,22 +1913,22 @@
               list:
               - {shape: ~, color: ~, size: small}
     - grid:
-      - argsort: 
+      - argsort:
           <<: *rotation
           idx: [1, 3, 0, 2]
     - grid:
-      - argsort: 
+      - argsort:
           <<: *rotation
-          idx: [3, 2, 1, 0]  
+          idx: [3, 2, 1, 0]
     - grid:
-      - argsort: 
+      - argsort:
           <<: *rotation
           idx: [2, 0, 3, 1]
 -
   name: majority intersection
-  gamma: 0.5
-  beta: 0.5
-  samples: 12500
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: False

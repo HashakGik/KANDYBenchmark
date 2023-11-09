@@ -2,7 +2,7 @@
   name: exists red shape
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -46,7 +46,7 @@
   name: exists red triangle
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -89,7 +89,7 @@
   name: exists large red triangle
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -132,7 +132,7 @@
   name: exists red shape or triangle
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -178,7 +178,7 @@
   name: for each group exists red shape
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -213,7 +213,7 @@
   name: for each group exists red triangle
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -248,7 +248,7 @@
   name: for each group exists red shape or triangle
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -287,7 +287,7 @@
   name: exist two red shapes
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -332,7 +332,7 @@
   name: exist two red shapes, one of which is a triangle and the other of which is large
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -380,7 +380,7 @@
   name: for each group there is a shared attribute (all red, all large or all triangles)
   gamma: 1.0
   beta: 1.0
-  samples: 125
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
