@@ -3,7 +3,7 @@
 
 This library contains the generator and datasets for the [KANDY benchmark](https://duckduckgo.com).
 
-Datasets are available in the [release section](releases/latest).
+Datasets are available in the [release section](../../releases/latest/).
 Baseline experiments described in the paper are available in the `baseline` subfolder.
 
 ## Introduction
