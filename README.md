@@ -6,6 +6,8 @@ This library contains the generator and datasets for the [KANDY benchmark](https
 Datasets are available in the [release section](../../releases/latest/).
 Baseline experiments described in the paper are available in the `baseline` subfolder.
 
+[![License: CC BY-NC-SA 4.0](https://licensebuttons.net/l/by-nc-sa/4.0/80x15.png)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
 ## Introduction
 
 Humans can learn effortlessly new concepts from limited examples, on the other hand neural networks struggle when presented with limited examples and when they are required to compose previously acquired knowledge into new concepts.
@@ -413,9 +415,3 @@ Ideally, let the framework discover compositions with its neural component (i.e.
 We do not provide pretraining datasets, you are free to define them, as long as they still allow for fair evaluation of your method (i.e., they can be used to reduce training time, or the search space in reasoning, but they cannot be used to allow some form of memorization of tasks in the dataset).
 
 You are encouraged to define additional tasks and/or modify the generator, for example to assess generalization of reasoning/representations to new tasks, higher-order capabilities, reasoning under noisy perception, etc.
-
-## License
-
-This project is under the Beerware license.
-
-As long as you retain this notice you can do whatever you want with this stuff. If we meet some day, and you think this stuff is worth it, you can buy me a beer in return.
