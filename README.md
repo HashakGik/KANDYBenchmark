@@ -1,7 +1,12 @@
-# Generator for tutored learning
+# KANDY benchmark and hierarchical Kandinsky pattern generator
 ## Description
 
-This library implements our tutored learning (temporary name) approach described in the paper XXX.
+This library contains the generator and datasets for the [KANDY benchmark](https://duckduckgo.com).
+
+Datasets are available in the [release section](releases/latest).
+Baseline experiments described in the paper are available in the `baseline` subfolder.
+
+## Introduction
 
 Humans can learn effortlessly new concepts from limited examples, on the other hand neural networks struggle when presented with limited examples and when they are required to compose previously acquired knowledge into new concepts.
 We argue that one of the reasons of these limitations is the radically different learning regimes to which humans and neural networks are subject to.
@@ -10,7 +15,7 @@ Human education is heavily reliant on teachers "scheduling" concept difficulties
 Moreover, as the student gets more confident with its answers, a teacher gradually reduces supervision, promoting a more independent decision making process.
 
 This code presents samples from a sequence of tasks in a non i.i.d. fashion, by emulating a teacher's behavior on a sequence of binary classification tasks.
-Each task is identified by two sets of hierarchical symbolic rules defined on a simple geometric domain and the neural network is provided with an image, with the objective of determining whether the input belongs to the positive or negative set.
+Each task is identified by two sets of hierarchical symbolic rules defined on a simple geometric domain and the student is provided with an image, with the objective of determining whether the input belongs to the positive or negative set.
 The teacher presents samples from each task sequentially and, inside each task, it can decide to provide samples either with or without supervision, according to a decayed schedule.
 
 The schedule is governed by an exponential distribution providing maximum supervision at the beginning of each task and minimum at the end.
@@ -19,7 +24,13 @@ This schedule emulates, for example, the behavior of a math teacher presenting t
 The code provides a way to define curricula in YAML format and a generator which can be queried both for traditional datasets (for i.i.d. training or testing) and tutored samples generated one at the time.
 Optionally, noise can be injected in task identifiers to verify whether the learner relies onto them or not.
 
-Each task image contains base concepts (triangles, squares and circles, in 6 different colors and 2 different sizes), which can be composed spatially by these recursive operators:
+## KANDY datasets
+
+We provide two curricula...
+
+## Kandinsky pattern generator
+
+Each task image contains base concepts (configurable, in the KANDY benchmark they are: triangles, squares and circles, in 6 different colors and 2 different sizes), which can be composed spatially by the following recursive operators:
 - `in`: subconcepts are drawn one inside the other
 - `quadrant_ul`: subconcepts are drawn one inside the other in the upper left quadrant
 - `quadrant_ur`: subconcepts are drawn one inside the other in the upper right quadrant
@@ -74,14 +85,14 @@ Sorting keys are:
 - `shape`: number of sides circle (0) < triangle (3) < square (4)
 - `color`: color, in the order defined in config.yml
 - `size`: size, in the order defined in config.yml, which may not reflect pixel size
-If the list contains one or more compound objects, the only valid sorting key is `n`, otherwise keys are evaluated in order (eg. `[color, size]` first sorts by color and within objects of the same color it sorts by size).
+If the list contains one or more compound objects, the only valid sorting key is `n`, otherwise keys are evaluated in order (e.g., `[color, size]` first sorts by color and within objects of the same color it sorts by size).
 
 These operators are always applied **AFTER** grounding atomic objects, therefore `repeat(n: 3, list: [{shape: not_square, color: red, size: ~])` will be resolved in the following way:
 1) Randomly ground attributes in atomic shapes, e.g. `{shape: circle, color: red, size: small}`
 2) Apply the expansion operators: `[{shape: circle, color: red, size: small}, {shape: circle, color: red, size: small}, {shape: circle, color: red, size: small}]`.
 In this example, the repetition produces three **identical** objects.
 
-In case this behavior is not wanted, the following variants of list operators perform expansion **BEFORE** grounding:
+In case this behavior is not desired, the following variants of list operators perform expansion **BEFORE** grounding:
 - `sample_before(n, L)`
 - `pick_before(n, L)`
 - `first_before(n, L)`
@@ -138,7 +149,7 @@ side_by_side:
     - {shape: circle, color: cyan, size: large}
   - {shape: triangle, color: red, size: large}
 ```
-While a different grounding of the same operators, like:
+Different variants of the same structure, like:
 ```commandline
 side_by_side:
    - palindrome_before:
@@ -161,15 +172,16 @@ side_by_side:
 ```
 
 **Caveat**: Set operators are always applied **BEFORE** grounding. If they contain `recall` expansions, these are evaluated before grounding as well, this means they can **ONLY** recall aliases defined by a `store_before` operator.
+Recall expansions outside set operators do not possess this limitation.
 
 List manipulation operators and compositional operators can be arbitrarily composed in the YAML specification file. Additionally, YAML aliases (`& *`) and overrides (`<<`) are supported for shorthand definitions.
-The following is an example curriculum composed of two tasks:
 
 To maximize experimental robustness, three mechanisms are enforced:
 - A random seed can be specified in the configuration file for the teacher. Each task will have a unique random generator with a seed computed from the teacher's and the task id.
-- Rejection sampling is used to produce `samples` unique samples for each task. A patience hyperparameter determines the number of failed trials before giving up. If patience is not exhausted, samples are guaranteed to appear to be unique and will be presented without repetition, otherwise, sampling with repetition will be performed.
+- Rejection sampling is used to produce `samples` unique samples for each task. A patience hyperparameter determines the number of failed trials before giving up. If patience is not exhausted, samples are guaranteed to be unique and will be presented without repetition, otherwise, sampling with repetition will be performed.
 - Optionally, a (set of) Prolog rule(s) can be defined for each task in the form `valid(X) :- ...`, an interpreter will load facts and rules from a background knowledge file (specified in `config.yml`) and check every generated sample. If a positive sample does not satisfy the rule(s), or a negative one satisfies it, the sample is rejected. Multiple task rules can be specified using YAML multiline strings.
 
+The following is an example curriculum composed of two tasks:
 ```
 - 
   name: my_task
@@ -243,7 +255,7 @@ To maximize experimental robustness, three mechanisms are enforced:
 
 
 All the tasks are assumed to be binary decision tasks determining whether an image belongs to a positive or negative set.
-**Important**: if there are enough unique samples, distributions are balanced (0.5 positives, 0.5 negatives), otherwise, the ratio between positive and negative samples will reflect the internal distribution of symbols (ie. a task specified with positive set consisting of 7 elements and a negative set consisting of 3 elements will approach a 0.7/0.3 positives-to-negatives ratio).
+**Important**: if there are enough unique samples, distributions are balanced (0.5 positives, 0.5 negatives), otherwise, the ratio between positive and negative samples will reflect the internal distribution of symbols (i.e., a task specified with positive set consisting of 7 elements and a negative set consisting of 3 elements will approach a 0.7/0.3 positives-to-negatives ratio).
 
 ## Examples
 
@@ -264,10 +276,12 @@ pillow
 pyswip >= 0.2.11
 ```
 
-## Usage
+**Note**: The datasets are self-contained, and they require no library (see below).
 
-1. Generate a YAML configuration (see the example `config.yml` for the grammar).
-2. Generate a YAML curriculum (see the example `curriculum.yml` for the grammar).
+## Generator usage
+
+1. Write a YAML configuration (see the example `config.yml`).
+2. Write a YAML curriculum (see `easy.yml` and `hard.yml`).
 3. Create a teacher:
     ```python
    cg = CurriculumGenerator("config.yml", "curriculum.yml", logger=logger)
@@ -317,7 +331,7 @@ pyswip >= 0.2.11
 
 ## Datasets
 
-The ready-to-use datasets described in the paper XXX are available for download in the releases. They do not require this library, as they consist of `.png` images with annotations in separate `.csv` files.
+The ready-to-use datasets described in the KANDY paper are available for download in the releases. They do not require this library, as they consist of `.png` images with annotations in separate `.csv` files.
 Annotations include:
 - `filename`: the path (relative to the csv file) of the image
 - `task_id`: id of the task within the curriculum (noise injection is disabled for released datasets)
@@ -325,14 +339,14 @@ Annotations include:
 - `supervised`: 1 if the label should be available to the learner, 0 if the label should only be used for evaluation of unsupervised learning
 - `symbol`: a string describing the underlying structure of the sample. It should **NOT** be provided as supervision to the learner.
 
-Additionally for reproducibility, dataset specifications (files `specs.txt`) and the config/curriculum files (`.yml`) are provided as well.
+Additionally for reproducibility, dataset specifications (files `specs.txt`) and the config/curriculum files (`.yml` and `.pl`) are provided as well.
 
 ## How to use the datasets
 
 ### Traditional machine learning (batch mode)
 1. Load annotation file from `samples/sets/{split}/annotations.csv`
 2. Select task of interest by id (or perform multi-task learning)
-3. Compute "global" loss function by multiplexing a supervised loss (when `supervised == 1`) and an unsupervised loss (when `supervised == 0`).
+3. Compute a "global" loss function by multiplexing a supervised loss (when `supervised == 1`) and an unsupervised loss (when `supervised == 0`).
    A straight-forward differentiable solution could be $supervised \cdot supervised\_loss(sample, label) + (1 - supervised) \cdot unsupervised\_loss(sample)$, but unless batch size is 1, more sophisticated approaches are required.
 4. Evaluate predictions using the true label also when `supervised` was 0
 5. Exploit `symbol` for method-specific explanations (e.g., attention masks matching the hierarchy?)
@@ -341,18 +355,18 @@ Additionally for reproducibility, dataset specifications (files `specs.txt`) and
 1.
    1. If you want to observe tasks in order, load annotation file from `samples/sets/{split}/annotations.csv`
    2. Otherwise, load annotation file from `samples/shuffled_curriculum/{split}/annotations.csv`
-2. Compute "global" loss function by multiplexing a supervised loss (when `supervised == 1`) and an unsupervised loss (when `supervised == 0`).
+2. Compute a "global" loss function by multiplexing a supervised loss (when `supervised == 1`) and an unsupervised loss (when `supervised == 0`).
    A straight-forward differentiable solution could be $supervised \cdot supervised\_loss(sample, label) + (1 - supervised) \cdot unsupervised\_loss(sample)$, but unless batch size is 1, more sophisticated approaches are required.
 3. Apply a catastrophic forgetting mitigation strategy (you are allowed to memorize samples in a replay buffer, but not allowed to go over the stream multiple times)
 4. Evaluate predictions using the true label also when `supervised` was 0
 5. Exploit `symbol` for method-specific explanations (e.g., attention masks matching the hierarchy?)
 
-**Note**: Samples in the shuffled curriculum folder are contained in a pseudo-task folder `0`
+**Note**: Samples in the shuffled curriculum folder are contained in a pseudo-task folder `0`.
 
 ### Inductive reasoning
 1. Load annotation file from `samples/sets/{split}/annotations.csv`. Images are not required.
 2. Write your own encoding procedure of `symbol` strings
-3. Write your own background knowledge (`minimal_bg.pl` in the main repository contains a minimal set of predicates which can be adapted to a different encoding), avoiding "cheat predicates" (i.e., **do not copy** the rules used at rejection in the `.yml` file)
+3. Write your own background knowledge (`bg.pl` in the main repository contains a minimal set of predicates which can be adapted to a different encoding), avoiding "cheat predicates" (i.e., **do not copy** the rules used at rejection in the `.yml` file)
 4. If your ILP framework does not support predicate invention, or if it is too expensive, feel free to add helper predicates to your background knowledge
 5. Manually evaluate induced predicates against rules in the `.yml` file (multiple correct predicates are possible and different encodings can produce radically different results).
 

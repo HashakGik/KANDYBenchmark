@@ -1,8 +1,8 @@
 -
   name: dimers same color
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -36,9 +36,9 @@
 
 -
   name: dimers same shape
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -68,9 +68,9 @@
 
 -
   name: trimers same color
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -97,9 +97,9 @@
 
 -
   name: trimers same shape
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -126,9 +126,9 @@
 
 -
   name: exists house
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.5
   val_split: 0.25
   noisy_color: True
@@ -165,9 +165,9 @@
 
 -
   name: exists car
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.5
   val_split: 0.25
   noisy_color: True
@@ -202,9 +202,9 @@
 
 -
   name: exists tower
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.5
   val_split: 0.25
   noisy_color: True
@@ -250,9 +250,9 @@
 
 -
   name: exists wagon
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.5
   val_split: 0.25
   noisy_color: True
@@ -291,9 +291,9 @@
 
 -
   name: traffic light
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.5
   val_split: 0.25
   noisy_color: True
@@ -331,9 +331,9 @@
 
 -
   name: for each group exists shared shape
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -382,9 +382,9 @@
                 - *any_obj
 -
   name: for each group exists shared color
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -434,9 +434,9 @@
 
 -
   name: for each group exists shared named object
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -491,9 +491,9 @@
                           list: *any_kmer
 -
   name: flat palindromes
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -521,9 +521,9 @@
 
 -
   name: pseudo palindrome
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -564,9 +564,9 @@
 
 -
   name: pseudo palindrome with named objects
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -614,9 +614,9 @@
                           - pick: *wagon
 -
   name: odd same color even same shape
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -688,9 +688,9 @@
 
 -
   name: if traffic light then car, else if house then tower
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True
@@ -767,9 +767,9 @@
 
 -
   name: universal if traffic light then car, else if house then tower
-  gamma: 0.5
-  beta: 0.5
-  samples: 1000
+  gamma: 1.0
+  beta: 1.0
+  samples: 100
   train_split: 0.8
   val_split: 0.1
   noisy_color: True

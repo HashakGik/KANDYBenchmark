@@ -371,7 +371,7 @@
   noisy_color: True
   noisy_size: True
   positive_rule: >-
-    valid(C) :- contains(C, C1), contains(C, C2), same_color(_, [C1, C2]), extract_shape(C1, triangle), extract_shape(C2, square).
+    valid(C) :- recursive_contains(C, C1), recursive_contains(C, C2), same_color(_, [C1, C2]), extract_shape(C1, triangle), extract_shape(C2, square).
 
   positive_set:
     - quadrant_or_center:
@@ -414,6 +414,26 @@
       - any_displacement:
         - {shape: triangle, color: ~, size: ~}
         - {shape: square, color: ~, size: ~}
+    - quadrant_or_center:
+      - any_displacement:
+        - { shape: ~, color: ~, size: ~ }
+        - { shape: ~, color: ~, size: ~ }
+    - quadrant_or_center:
+        - any_displacement:
+            - repeat_before:
+                n: 2
+                list:
+                - pick_before:
+                    n: 1
+                    list:
+                      - { shape: ~, color: red, size: ~ }
+                      - { shape: ~, color: green, size: ~ }
+                      - { shape: ~, color: blue, size: ~ }
+                      - { shape: ~, color: cyan, size: ~ }
+                      - { shape: ~, color: magenta, size: ~ }
+                      - { shape: ~, color: yellow, size: ~ }
+
+
 -
   name: palindrome aba
   gamma: 1.0
