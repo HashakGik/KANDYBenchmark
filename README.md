@@ -28,7 +28,21 @@ Optionally, noise can be injected in task identifiers to verify whether the lear
 
 ## KANDY datasets
 
-We provide two curricula...
+We release two benchmarks in the form of curricula of tasks,
+that showcase the features available to the end-user. We name the two curricula Easy
+and Hard, due to the different complexity of the involved tasks. In both curricula, each
+sample is a $224 \times 224$ RGB image annotated with: task id, binary label, supervision
+state (whether the label should be used in training), and symbolic representation. The
+symbolic structure is a recursive dictionary of lists representing a tree, where keys
+are nodes annotated with compositional operators and values are children. Leaves are
+dictionaries in the form `{shape: SH, color: CO, size: SZ}`, and they represent
+atomic objects. No list expansion operator appears in symbolic annotations. Atomic
+objects can be small or large ($10 \times 10$ and $25 \times 25$ pixels, respectively), and they can
+take any of six colors (red, green, blue, cyan, magenta and yellow). Object sizes are
+corrupted by additive uniform noise in the range $\pm[0, 2]$ pixels, and color is corrupted
+by zero-mean Gaussian noise in HSV coordinates ($\sigma_H = 0.01, \sigma_S = 0.2, \sigma_V = 0.2$).
+These values were hand-picked to preserve perceptual boundaries (e.g., humans still
+perceive the maximally corrupted “red” as such). Background was set to gray.
 
 ## Kandinsky pattern generator
 

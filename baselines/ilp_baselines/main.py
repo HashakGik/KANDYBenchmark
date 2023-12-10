@@ -40,7 +40,7 @@ arg_parser.add_argument('--engine', help="The engine to be used in "
                                          "{'aleph', 'popper'}", type=ArgString(), default="popper", choices=["aleph", "popper"])
 arg_parser.add_argument('--encoding', help="The encoding to be used in "
                                          "{'natural', 'pointer'}", type=ArgString(), default="natural", choices=["natural", "pointer"])
-arg_parser.add_argument('--timeout', help="Timeout for execution (in seconds)", type=ArgNumber(int, min_val=0, max_val=7200), default=600)
+arg_parser.add_argument('--timeout', help="Timeout for execution (in seconds)", type=ArgNumber(int, min_val=0, max_val=86400), default=600)
 
 # Shared biases:
 arg_parser.add_argument('--max_vars', help="Maximum number of variables in body", type=ArgNumber(int, min_val=0), default=6)
@@ -74,7 +74,7 @@ if opts['wandb_project'] is not None:
 
 # Reject illegal combinations.
 assert opts["prefix"] != "minimal" or opts["prefix_cheat"] is None, "Cannot use cheat predicates together with the minimal knowledge base."
-assert opts["prefix"] != "normal" or (not opts["predicate_invention"] and not opts["recursion"] and not opts["singleton_vars"]), "Cannot use predicate invention, recursion or singletons with cheat knowledge base."
+assert opts["prefix_cheat"] is None or (not opts["predicate_invention"] and not opts["recursion"] and not opts["singleton_vars"]), "Cannot use predicate invention, recursion or singletons with cheat knowledge base."
 assert opts["engine"] != "aleph" or (not opts["predicate_invention"] and not opts["recursion"] and not opts["singleton_vars"]), "Cannot use predicate invention, recursion or singletons with engine aleph."
 
 

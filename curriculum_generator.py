@@ -1314,7 +1314,7 @@ class CurriculumGenerator:
             except yaml.YAMLError as e:
                 print(e)
 
-        self.rng = np.random.RandomState(self.config["seed"])  # Serve per il task id corruption...
+        self.rng = np.random.RandomState(self.config["seed"])
 
         # Curriculum specifications.
         with open(curriculum, "r") as file:
